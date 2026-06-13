@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TechNC Admin — Gestion catalogue & marges</title>
+<style>
+:root {
+  --bg: #0f0f11;
+  --surface: #18181b;
+  --surface2: #1f1f23;
+  --border: #2a2a30;
+  --border2: #3a3a42;
+  --text: #e8e8ed;
+  --mid: #86868b;
+  --dim: #48484e;
+  --accent: #0a84ff;
+  --accent-dim: rgba(10,132,255,.12);
+  --green: #30d158;
+  --green-dim: rgba(48,209,88,.12);
+  --orange: #ff9f0a;
+  --orange-dim: rgba(255,159,10,.12);
+  --red: #ff453a;
+  --red-dim: rgba(255,69,58,.12);
+  --purple: #bf5af2;
+  --purple-dim: rgba(191,90,242,.12);
+  --r: 12px; --rs: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; padding-left:220px; }
+
+/* LAYOUT */
+.layout { min-height:100vh; }
+
+/* SIDEBAR */
+.sidebar { width:220px; background:var(--surface); border-right:1px solid var(--border); padding:20px 0; position:fixed; top:0; left:0; height:100vh; overflow-y:auto; display:flex; flex-direction:column; z-index:20; }
+.sidebar-logo { padding:0 18px 20px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+.sidebar-logo span { font-size:17px; font-weight:700; letter-spacing:-.3px; color:var(--text); }
+.sidebar-logo span em { font-style:normal; color:var(--accent); }
+.sidebar-logo small { display:block; font-size:11px; color:var(--dim); margin-top:2px; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:9px 18px; font-size:13px; color:var(--mid); cursor:pointer; border-radius:0; transition:all .15s; border-left:2px solid transparent; }
+.nav-item:hover { color:var(--text); background:rgba(255,255,255,.04); }
+.nav-item.active { color:var(--accent); background:var(--accent-dim); border-left-color:var(--accent); }
+.nav-item svg { width:15px; height:15px; flex-shrink:0; }
+.sidebar-section { font-size:10px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; padding:16px 18px 6px; }
+.sidebar-bottom { margin-top:auto; padding:16px 18px; border-top:1px solid var(--border); font-size:11px; color:var(--dim); }
+.sidebar-bottom strong { color:var(--mid); display:block; }
+
+/* MAIN */
+.main { width:100%; }
+.topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 28px; height:52px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+.topbar-title { font-size:15px; font-weight:600; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.topbar-badge { background:var(--green-dim); color:var(--green); border-radius:980px; padding:3px 10px; font-size:11px; font-weight:600; }
+.btn { border:none; border-radius:var(--rs); padding:7px 14px; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; transition:all .15s; display:inline-flex; align-items:center; gap:6px; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:#1a91ff; }
+.btn-ghost { background:transparent; color:var(--mid); border:1px solid var(--border2); }
+.btn-ghost:hover { color:var(--text); border-color:var(--border2); background:rgba(255,255,255,.04); }
+.btn-sm { padding:5px 10px; font-size:11px; }
+
+.content { padding:24px 28px; }
+
+/* KPI ROW */
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:28px; }
+.kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; }
+.kpi-label { font-size:11px; color:var(--mid); font-weight:500; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+.kpi-val { font-size:26px; font-weight:700; letter-spacing:-.5px; line-height:1; margin-bottom:4px; }
+.kpi-sub { font-size:11px; color:var(--dim); }
+.kpi.accent .kpi-val { color:var(--accent); }
+.kpi.green .kpi-val { color:var(--green); }
+.kpi.orange .kpi-val { color:var(--orange); }
+.kpi.purple .kpi-val { color:var(--purple); }
+
+/* SECTION HEADER */
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.section-header h2 { font-size:15px; font-weight:600; }
+.filter-row { display:flex; gap:8px; flex-wrap:wrap; }
+.filter-btn { background:none; border:1px solid var(--border2); border-radius:980px; padding:5px 12px; font-size:12px; color:var(--mid); cursor:pointer; font-family:inherit; transition:all .15s; }
+.filter-btn:hover { color:var(--text); }
+.filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+/* TABLE */
+.table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+.table-scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead tr { background:var(--surface2); }
+th { padding:10px 14px; text-align:left; font-size:10px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; border-bottom:1px solid var(--border); }
+th:first-child { padding-left:18px; }
+th:last-child { padding-right:18px; }
+td { padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+td:first-child { padding-left:18px; }
+td:last-child { padding-right:18px; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,.02); }
+.td-product { display:flex; flex-direction:column; gap:2px; }
+.td-name { font-weight:600; color:var(--text); font-size:12px; }
+.td-spec { font-size:11px; color:var(--dim); }
+.td-cat { display:inline-block; background:var(--accent-dim); color:var(--accent); border-radius:4px; padding:2px 7px; font-size:10px; font-weight:600; margin-bottom:3px; }
+.num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.num-pos { color:var(--green); }
+.num-neg { color:var(--red); }
+.num-warn { color:var(--orange); }
+.pct-badge { display:inline-block; border-radius:4px; padding:2px 7px; font-size:10px; font-weight:700; }
+.pct-hi { background:var(--green-dim); color:var(--green); }
+.pct-mid { background:var(--orange-dim); color:var(--orange); }
+.pct-lo { background:var(--red-dim); color:var(--red); }
+.priority { display:inline-flex; align-items:center; gap:4px; font-size:11px; }
+.dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dot-green { background:var(--green); }
+.dot-orange { background:var(--orange); }
+.dot-red { background:var(--red); }
+.editable { background:transparent; border:1px solid transparent; border-radius:4px; padding:3px 6px; font-size:12px; color:var(--text); font-family:inherit; width:90px; text-align:right; transition:all .15s; font-variant-numeric:tabular-nums; }
+.editable:hover { border-color:var(--border2); }
+.editable:focus { outline:none; border-color:var(--accent); background:rgba(10,132,255,.08); }
+.toggle-dispo { position:relative; display:inline-flex; align-items:center; cursor:pointer; }
+.toggle-dispo input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track { width:32px; height:18px; background:var(--border2); border-radius:9px; transition:background .18s; position:relative; display:block; }
+.toggle-dispo input:checked + .toggle-track { background:var(--green); }
+.toggle-thumb { position:absolute; width:14px; height:14px; border-radius:50%; background:#fff; top:2px; left:2px; transition:left .18s; box-shadow:0 1px 2px rgba(0,0,0,.35); }
+.toggle-dispo input:checked + .toggle-track .toggle-thumb { left:16px; }
+.badge-indispo { display:inline-block; background:var(--red-dim); color:var(--red); border-radius:4px; padding:1px 6px; font-size:9px; font-weight:600; margin-left:5px; vertical-align:middle; }
+.ap-check-row { display:flex; align-items:center; gap:10px; padding:10px 0 4px; cursor:pointer; }
+.ap-check-row input[type=checkbox] { width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+.ap-check-label { font-size:13px; color:var(--text); }
+.recalc-btn { background:var(--accent-dim); color:var(--accent); border:none; border-radius:4px; padding:3px 8px; font-size:10px; font-weight:600; cursor:pointer; font-family:inherit; }
+.recalc-btn:hover { background:rgba(10,132,255,.22); }
+
+/* TAUX */
+.rates-bar { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+.rate-item { display:flex; align-items:center; gap:10px; }
+.rate-label { font-size:11px; color:var(--mid); }
+.rate-input { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--rs); padding:5px 10px; font-size:13px; font-weight:600; color:var(--text); font-family:inherit; width:90px; text-align:center; outline:none; }
+.rate-input:focus { border-color:var(--accent); }
+.rate-sep { width:1px; height:30px; background:var(--border); }
+.rate-info { font-size:11px; color:var(--dim); }
+
+/* PAGE COMMANDES */
+.orders-grid { display:flex; flex-direction:column; gap:10px; }
+.order-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.order-card:hover { border-color:var(--border2); }
+.order-left { display:flex; flex-direction:column; gap:3px; }
+.order-num { font-size:10px; color:var(--dim); font-weight:600; letter-spacing:.05em; }
+.order-name { font-size:14px; font-weight:600; }
+.order-prod { font-size:12px; color:var(--mid); }
+.order-mid { display:flex; gap:16px; align-items:center; }
+.order-amount { font-size:16px; font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; }
+.order-paid { font-size:11px; color:var(--mid); }
+.order-status { display:inline-flex; align-items:center; gap:5px; border-radius:980px; padding:4px 10px; font-size:11px; font-weight:600; }
+.status-pending { background:var(--orange-dim); color:var(--orange); }
+.status-confirmed { background:var(--green-dim); color:var(--green); }
+.status-delivered { background:var(--accent-dim); color:var(--accent); }
+.progress-bar { width:120px; background:var(--border); border-radius:4px; height:5px; overflow:hidden; }
+.progress-fill { height:100%; background:var(--green); border-radius:4px; transition:width .3s; }
+
+/* VOYAGE */
+.voyage-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:20px 22px; margin-bottom:14px; }
+.voyage-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.voyage-title { font-size:14px; font-weight:600; }
+.voyage-badge { background:var(--green-dim); color:var(--green); border-radius:980px; padding:4px 12px; font-size:11px; font-weight:600; }
+.voyage-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+.voyage-stat { background:var(--surface2); border-radius:var(--rs); padding:12px 14px; }
+.voyage-stat-label { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+.voyage-stat-val { font-size:18px; font-weight:700; }
+
+/* SINGLE-PAGE SCROLL */
+.page { display:block; scroll-margin-top:52px; }
+.page + .page { border-top:1px solid var(--border); }
+
+/* TOOLTIP */
+.tooltip { position:relative; }
+.tooltip:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:#1a1a1f; border:1px solid var(--border2); border-radius:6px; padding:4px 8px; font-size:11px; color:var(--text); white-space:nowrap; z-index:100; }
+
+@media(max-width:768px){ body{padding-left:0} .sidebar{display:none} .kpi-row{grid-template-columns:1fr 1fr} }
+
+/* ORDER DETAIL PANEL */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;opacity:0;pointer-events:none;transition:opacity .25s;}
+.panel-overlay.open{opacity:1;pointer-events:auto;}
+.order-panel{position:fixed;top:0;right:0;width:480px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:51;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;}
+.order-panel.open{transform:translateX(0);}
+.panel-topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;gap:12px;}
+.panel-code{font-size:16px;font-weight:700;color:var(--accent);}
+.panel-close{background:none;border:none;color:var(--mid);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;border-radius:6px;transition:color .15s;font-family:inherit;flex-shrink:0;}
+.panel-close:hover{color:var(--text);}
+.panel-body{padding:20px;flex:1;display:flex;flex-direction:column;gap:22px;}
+.psec{display:flex;flex-direction:column;gap:10px;}
+.psec-title{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.prow{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.plabel{font-size:12px;color:var(--mid);flex-shrink:0;}
+.pval{font-size:13px;font-weight:500;text-align:right;}
+.ppay-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border);}
+.ppay-row:last-child{border-bottom:none;}
+.ppay-label{font-size:12px;color:var(--mid);flex:1;}
+.ppay-amount{font-size:12px;font-weight:600;white-space:nowrap;}
+.ppay-status{font-size:11px;min-width:70px;text-align:center;}
+.ptl{display:flex;flex-direction:column;}
+.ptl-item{display:flex;gap:12px;position:relative;}
+.ptl-item:not(:last-child)::after{content:'';position:absolute;left:10px;top:22px;width:2px;height:calc(100% - 2px);background:var(--border);}
+.ptl-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--border2);background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;}
+.ptl-dot.done{border-color:var(--green);background:var(--green);}
+.ptl-dot.active{border-color:var(--accent);background:var(--accent);}
+.ptl-dot.done::after,.ptl-dot.active::after{content:'';width:8px;height:8px;background:#fff;border-radius:50%;display:block;}
+.ptl-body{padding:1px 0 18px;}
+.ptl-name{font-size:13px;font-weight:500;}
+.ptl-sub{font-size:11px;color:var(--dim);margin-top:1px;}
+.pnotes{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;font-size:13px;color:var(--text);font-family:inherit;resize:vertical;min-height:90px;outline:none;transition:border-color .15s;}
+.pnotes:focus{border-color:var(--accent);}
+.order-card{cursor:pointer;}
+
+/* ADD PRODUCT PANEL */
+.add-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:52;opacity:0;pointer-events:none;transition:opacity .25s;}
+.add-panel-overlay.open{opacity:1;pointer-events:auto;}
+.add-panel{position:fixed;top:0;right:0;width:520px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:53;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;}
+.add-panel.open{transform:translateX(0);}
+.aform-group{display:flex;flex-direction:column;gap:5px;}
+.aform-label{font-size:11px;color:var(--mid);font-weight:500;}
+.aform-input{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;transition:border-color .15s;}
+.aform-input:focus{border-color:var(--accent);}
+.aform-select{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;cursor:pointer;transition:border-color .15s;}
+.aform-select:focus{border-color:var(--accent);}
+.price-result-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:all .15s;}
+.price-result-item:hover{border-color:var(--accent);background:var(--accent-dim);}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span>Tech<em>NC</em> <span style="color:var(--dim);font-weight:400">Admin</span></span>
+    <small>Gestion interne</small>
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <div class="nav-item" data-section="catalogue" onclick="scrollToSection('catalogue')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Catalogue & Marges
+  </div>
+  <div class="nav-item" data-section="commandes" onclick="scrollToSection('commandes')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+    Commandes
+  </div>
+  <div class="nav-item" data-section="voyages" onclick="scrollToSection('voyages')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>
+    Voyages
+  </div>
+  <div class="sidebar-section">Outils</div>
+  <div class="nav-item" data-section="simulator" onclick="scrollToSection('simulator')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3"/><path d="M9 15l8-8"/><path d="M17 3h4v4"/></svg>
+    Simulateur marge
+  </div>
+  <div class="sidebar-bottom">
+    <strong>Créneau actif</strong>
+    Voyage Sept. 2026<br>Clôture 20 août
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Catalogue & Marges</div>
+    <div class="topbar-right">
+      <span class="topbar-badge">● Créneau ouvert</span>
+      <button class="btn btn-ghost btn-sm" id="seed-btn" onclick="seedCatalogue()">⚡ Seed DB</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">↓ Export CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="recalcAll()">⟳ Recalculer tout</button>
+    </div>
+  </div>
+
+  <!-- PAGE CATALOGUE -->
+  <div class="page" id="page-catalogue">
+    <div class="content">
+
+      <!-- KPIs -->
+      <div class="kpi-row" id="kpi-row">
+        <div class="kpi accent"><div class="kpi-label">Produits catalogue</div><div class="kpi-val" id="k-total">24</div><div class="kpi-sub">toutes catégories</div></div>
+        <div class="kpi green"><div class="kpi-label">Marge nette moy.</div><div class="kpi-val" id="k-marge">—</div><div class="kpi-sub">par unité vendue</div></div>
+        <div class="kpi orange"><div class="kpi-label">Taux moyen</div><div class="kpi-val" id="k-taux">—</div><div class="kpi-sub">marge / prix vente</div></div>
+        <div class="kpi purple"><div class="kpi-label">Top produit</div><div class="kpi-val" id="k-top" style="font-size:14px">—</div><div class="kpi-sub">marge absolue max</div></div>
+      </div>
+
+      <!-- TAUX GLOBAUX -->
+      <!-- STATUT PATENTE -->
+      <div style="background:rgba(255,159,10,.1);border:1px solid rgba(255,159,10,.3);border-radius:var(--rs);padding:12px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px">⚠️</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--orange)">Mode : Sans patente</div>
+            <div style="font-size:11px;color:var(--mid)">TGC 22% comptée dans le coût réel — non récupérable</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--mid)">Basculer en mode patenté</span>
+          <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
+            <input type="checkbox" id="toggle-patente" onchange="togglePatente(this)" style="opacity:0;width:0;height:0;">
+            <span id="toggle-track" style="position:absolute;inset:0;background:var(--border2);border-radius:12px;transition:background .2s;"></span>
+            <span id="toggle-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:white;border-radius:50%;transition:transform .2s;"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="rates-bar">
+        <div class="rate-item" style="flex-direction:column;align-items:flex-start;gap:4px;">
+          <span class="rate-label">Taux AUD/XPF</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input class="rate-input" id="rate-aud" type="number" value="73" step="0.01" onchange="recalcAll()">
+            <button onclick="fetchRate()" id="rate-btn" style="background:var(--accent-dim);color:var(--accent);border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;" title="Actualiser le taux en temps réel">⟳ Live</button>
+          </div>
+          <span id="rate-status" style="font-size:10px;color:var(--dim);">Cliquer sur Live pour actualiser</span>
+        </div>
+        <div class="rate-sep"></div>
+        <div class="rate-item">
+          <span class="rate-label">Douane (DD)</span>
+          <input class="rate-input" id="rate-douane" type="number" value="5" step="1" onchange="recalcAll()">
+          <span class="rate-info">% — non récupérable</span>
+        </div>
+        <div class="rate-sep"></div>
+        <div class="rate-item">
+          <span class="rate-label" id="tgc-label" style="color:var(--orange)">TGC (dans le coût)</span>
+          <input class="rate-input" id="rate-tgc" type="number" value="22" step="0.5" onchange="recalcAll()">
+          <span class="rate-info" id="tgc-info" style="color:var(--orange)">% — non récup. sans patente</span>
+        </div>
+        <div class="rate-sep"></div>
+        <div class="rate-item">
+          <span class="rate-label">Fret/unité (XPF)</span>
+          <input class="rate-input" id="rate-fret" type="number" value="4500" step="500" onchange="recalcAll()">
+        </div>
+        <div class="rate-sep"></div>
+        <div class="rate-item" style="flex-direction:column;align-items:flex-start;gap:4px;">
+          <span class="rate-label">Taux douane NC</span>
+          <span id="customs-status" style="font-size:10px;color:var(--dim);">Chargement API douane.gouv.nc…</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;">
+            <span style="font-size:10px;background:var(--accent-dim);color:var(--accent);border-radius:4px;padding:2px 6px;">iPhone 8517.13.00</span>
+            <span style="font-size:10px;background:var(--accent-dim);color:var(--accent);border-radius:4px;padding:2px 6px;">iPad/Mac 8471.30.00</span>
+            <span style="font-size:10px;background:var(--accent-dim);color:var(--accent);border-radius:4px;padding:2px 6px;">Watch 9102.12.00</span>
+            <span style="font-size:10px;background:var(--accent-dim);color:var(--accent);border-radius:4px;padding:2px 6px;">Audio 8518.30.00</span>
+          </div>
+        </div>
+        <div class="rate-sep"></div>
+        <div class="rate-item">
+          <span class="rate-label">Stripe</span>
+          <input class="rate-input" id="rate-stripe" type="number" value="1.5" step="0.1" onchange="recalcAll()">
+          <span class="rate-info">% du prix vente</span>
+        </div>
+      </div>
+        </div>
+      </div>
+
+      <!-- FILTRES -->
+      <div class="section-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <h2>Tous les produits</h2>
+          <button class="btn btn-primary btn-sm" onclick="openAddPanel()">+ Ajouter un produit</button>
+          <button class="btn btn-ghost btn-sm" id="sync-btn" onclick="syncMaintenant()" style="gap:6px;">⟳ Sync prix</button>
+        </div>
+        <div class="filter-row">
+          <button class="filter-btn active" onclick="filterCat('all',this)">Tout</button>
+          <button class="filter-btn" onclick="filterCat('iPhone',this)">iPhone</button>
+          <button class="filter-btn" onclick="filterCat('iPad',this)">iPad</button>
+          <button class="filter-btn" onclick="filterCat('Mac',this)">Mac</button>
+          <button class="filter-btn" onclick="filterCat('Watch',this)">Watch</button>
+          <button class="filter-btn" onclick="filterCat('Audio',this)">Audio</button>
+          <button class="filter-btn" onclick="filterCat('Accessoire',this)">Accesso.</button>
+          <button class="filter-btn" onclick="filterCat('Android',this)">Android</button>
+        </div>
+      </div>
+
+      <!-- SYNC RESULT BANNER -->
+      <div id="sync-banner" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 16px;margin-bottom:14px;font-size:12px;line-height:1.6;"></div>
+
+      <!-- TABLE -->
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table id="main-table">
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th class="tooltip" data-tip="Prix brut Apple AU ou JB Hi-Fi">Prix AU (AUD)</th>
+                <th class="tooltip" data-tip="Remboursement GST 10% à l'aéroport">GST récup.</th>
+                <th class="tooltip" data-tip="Prix net après remboursement GST">Net AU</th>
+                <th class="tooltip" data-tip="Net AU × taux AUD/XPF">Coût AUD→XPF</th>
+                <th class="tooltip" data-tip="Droits de douane NC non récupérables">Douane NC</th>
+                <th class="tooltip" data-tip="TGC neutre pour entreprise patentée">TGC</th>
+                <th style="font-weight:700;color:var(--orange)">Coût réel</th>
+                <th>Prix vente TechNC</th>
+                <th class="tooltip" data-tip="Fret + Stripe déduits">Charges var.</th>
+                <th style="font-weight:700;color:var(--green)">Marge nette</th>
+                <th>% Marge</th>
+                <th>Priorité</th>
+                <th style="text-align:center;">Dispo</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PAGE COMMANDES -->
+  <div class="page" id="page-commandes">
+    <div class="content">
+      <div class="kpi-row" id="orders-kpi">
+        <div class="kpi green"><div class="kpi-label">Commandes reçues</div><div class="kpi-val" id="k-orders-count">—</div><div class="kpi-sub">créneau sept. 2026</div></div>
+        <div class="kpi accent"><div class="kpi-label">CA verrouillé</div><div class="kpi-val" id="k-orders-ca">—</div><div class="kpi-sub">XPF</div></div>
+        <div class="kpi orange"><div class="kpi-label">Taux moyen verrouillé</div><div class="kpi-val" id="k-orders-taux">—</div><div class="kpi-sub">AUD/XPF</div></div>
+        <div class="kpi purple"><div class="kpi-label">Marge estimée</div><div class="kpi-val" id="k-orders-marge">—</div><div class="kpi-sub">XPF</div></div>
+      </div>
+      <div class="section-header">
+        <h2>Commandes — Voyage Septembre 2026</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="loadOrders()">⟳ Rafraîchir</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportOrders()">↓ Export CSV</button>
+        </div>
+      </div>
+      <!-- Commandes live depuis localStorage (→ Firebase à brancher) -->
+      <div class="orders-grid" id="orders-list">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px;text-align:center;color:var(--dim);">
+          <div style="font-size:24px;margin-bottom:8px;">📋</div>
+          <div style="font-size:13px;">Chargement des commandes…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE VOYAGES -->
+  <div class="page" id="page-voyages">
+    <div class="content">
+
+      <!-- KPIs dynamiques -->
+      <div class="kpi-row">
+        <div class="kpi accent"><div class="kpi-label">Créneaux créés</div><div class="kpi-val" id="k-creneaux-total">—</div><div class="kpi-sub">dans Firestore</div></div>
+        <div class="kpi green"><div class="kpi-label">Créneau ouvert</div><div class="kpi-val" id="k-creneaux-ouverts">—</div><div class="kpi-sub">visible sur la vitrine</div></div>
+        <div class="kpi orange"><div class="kpi-label">Commandes actives</div><div class="kpi-val" id="k-creneaux-cmds">—</div><div class="kpi-sub">créneau ouvert</div></div>
+        <div class="kpi purple"><div class="kpi-label">Budget estimé</div><div class="kpi-val" id="k-creneaux-budget">—</div><div class="kpi-sub">A$ créneau ouvert</div></div>
+      </div>
+
+      <!-- Formulaire nouveau créneau -->
+      <div class="voyage-card" style="margin-bottom:20px;">
+        <div class="voyage-header" style="margin-bottom:16px;">
+          <span class="voyage-title">✦ Nouveau créneau</span>
+          <span style="font-size:11px;color:var(--dim)">Statut initial : Fermé — à ouvrir manuellement</span>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:var(--mid);font-weight:500;">Titre</label>
+            <input id="cr-titre" placeholder="Voyage Septembre 2026" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:var(--mid);font-weight:500;">Date de départ</label>
+            <input id="cr-depart" type="date" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:var(--mid);font-weight:500;">Date de retour</label>
+            <input id="cr-retour" type="date" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:var(--mid);font-weight:500;">Clôture commandes</label>
+            <input id="cr-cloture" type="date" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:16px;">
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:var(--mid);font-weight:500;">Budget estimé (A$)</label>
+            <input id="cr-budget" type="number" placeholder="15000" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:var(--mid);font-weight:500;">Notes internes</label>
+            <input id="cr-notes" placeholder="Remarques, contraintes…" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="createCreneau()">+ Créer le créneau</button>
+      </div>
+
+      <!-- Liste dynamique -->
+      <div class="section-header">
+        <h2>Créneaux & Voyages</h2>
+      </div>
+      <div id="creneaux-list">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:36px;text-align:center;color:var(--dim);">
+          <div style="font-size:24px;margin-bottom:8px;">✈️</div>
+          <div style="font-size:13px;">Chargement des créneaux…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PAGE SIMULATEUR -->
+  <div class="page" id="page-simulator">
+    <div class="content">
+      <div style="max-width:560px">
+        <h2 style="font-size:17px;margin-bottom:6px">Simulateur de marge</h2>
+        <p style="font-size:13px;color:var(--mid);margin-bottom:24px">Calcule instantanément la rentabilité d'un produit quelconque.</p>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:16px;">
+          <div class="fg" style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;color:var(--mid);font-weight:500">Nom du produit</label>
+            <input id="sim-name" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" placeholder="ex: MacBook Pro M5 Pro 14&quot; 1TB" oninput="simulate()">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="fg" style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;color:var(--mid);font-weight:500">Prix AU (A$)</label>
+              <input id="sim-aud" type="number" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" placeholder="2 499" oninput="simulate()">
+            </div>
+            <div class="fg" style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;color:var(--mid);font-weight:500">Prix vente NC (XPF)</label>
+              <input id="sim-vente" type="number" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" placeholder="229 000" oninput="simulate()">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="fg" style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;color:var(--mid);font-weight:500">Taux douane (%)</label>
+              <input id="sim-douane" type="number" value="5" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" oninput="simulate()">
+            </div>
+            <div class="fg" style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;color:var(--mid);font-weight:500">Fret estimé (XPF)</label>
+              <input id="sim-fret" type="number" value="4500" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" oninput="simulate()">
+            </div>
+          </div>
+          <!-- RÉSULTATS -->
+          <div id="sim-results" style="background:var(--surface2);border-radius:var(--rs);padding:16px;display:none">
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Résultats</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div><div style="font-size:10px;color:var(--dim)">GST récupéré</div><div style="font-size:15px;font-weight:600;color:var(--green)" id="sr-gst">—</div></div>
+              <div><div style="font-size:10px;color:var(--dim)">Coût net AU → XPF</div><div style="font-size:15px;font-weight:600" id="sr-net">—</div></div>
+              <div><div style="font-size:10px;color:var(--dim)">Douane NC</div><div style="font-size:15px;font-weight:600;color:var(--red)" id="sr-douane">—</div></div>
+              <div><div style="font-size:10px;color:var(--dim)">Coût réel total</div><div style="font-size:15px;font-weight:700;color:var(--orange)" id="sr-cout">—</div></div>
+              <div><div style="font-size:10px;color:var(--dim)">Charges variables</div><div style="font-size:15px;font-weight:600;color:var(--red)" id="sr-charges">—</div></div>
+              <div><div style="font-size:10px;color:var(--dim);font-weight:700">MARGE NETTE</div><div style="font-size:20px;font-weight:700;color:var(--green)" id="sr-marge">—</div></div>
+            </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--mid)">Taux de marge nette</span>
+              <span style="font-size:18px;font-weight:700" id="sr-taux">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs, deleteDoc, doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+const firebaseConfig = {
+  apiKey: "AIzaSyDAKyz72MX5Ebe2YcPEabVdWQSggp7a5JA",
+  authDomain: "technc-ec348.firebaseapp.com",
+  projectId: "technc-ec348",
+  storageBucket: "technc-ec348.firebasestorage.app",
+  messagingSenderId: "472212803063",
+  appId: "1:472212803063:web:612f2ff80483821a1372f2"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+window._fbDb = db;
+window._fbCollection = collection;
+window._fbGetDocs = getDocs;
+window._fbDeleteDoc = deleteDoc;
+window._fbDoc = doc;
+window._fbOnSnapshot = onSnapshot;
+window._fbSetDoc = setDoc;
+window._fbUpdateDoc = updateDoc;
+window._fbServerTimestamp = serverTimestamp;
+</script>
+
+<script>
+// ─── DONNÉES PRODUITS (chargées depuis Firestore) ────────────
+let products = [];
+
+// Seed initial — toutes les données pour peupler technc_catalogue
+const SEED_CATALOGUE = [
+  // iPhone
+  { id:'iphone-17-pro-256', cat:'iPhone', marque:'Apple', nom:'iPhone 17 Pro', spec:'256 Go · A19 Pro', prixAUD:1999, gst:199.9, prixVente:191000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'iphone-17-pro-512', cat:'iPhone', marque:'Apple', nom:'iPhone 17 Pro', spec:'512 Go · A19 Pro', prixAUD:2399, gst:239.9, prixVente:225000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'iphone-17-pro-max-256', cat:'iPhone', marque:'Apple', nom:'iPhone 17 Pro Max', spec:'256 Go · A19 Pro', prixAUD:2199, gst:219.9, prixVente:208000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'iphone-air-256', cat:'iPhone', marque:'Apple', nom:'iPhone Air', spec:'256 Go · A19 Pro · 5,6mm', prixAUD:1799, gst:179.9, prixVente:174000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'iphone-17-256', cat:'iPhone', marque:'Apple', nom:'iPhone 17', spec:'256 Go · A19', prixAUD:1399, gst:139.9, prixVente:140000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'iphone-17e-256', cat:'iPhone', marque:'Apple', nom:'iPhone 17e', spec:'256 Go · A19', prixAUD:999, gst:99.9, prixVente:106000, visible:true, fournisseur:'Apple Store AU' },
+  // iPad
+  { id:'ipad-pro-13-m5', cat:'iPad', marque:'Apple', nom:'iPad Pro 13" M5', spec:'256 Go WiFi', prixAUD:2199, gst:219.9, prixVente:208000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'ipad-pro-11-m5', cat:'iPad', marque:'Apple', nom:'iPad Pro 11" M5', spec:'256 Go WiFi', prixAUD:1699, gst:169.9, prixVente:165000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'ipad-air-11-m4', cat:'iPad', marque:'Apple', nom:'iPad Air 11" M4', spec:'128 Go WiFi', prixAUD:999, gst:99.9, prixVente:106000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'ipad-mini-a17', cat:'iPad', marque:'Apple', nom:'iPad mini A17 Pro', spec:'128 Go WiFi', prixAUD:799, gst:79.9, prixVente:89000, visible:true, fournisseur:'Apple Store AU' },
+  // Mac
+  { id:'macbook-neo-256', cat:'Mac', marque:'Apple', nom:'MacBook Neo', spec:'256 Go · A18 Pro', prixAUD:899, gst:89.9, prixVente:97000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'macbook-neo-512', cat:'Mac', marque:'Apple', nom:'MacBook Neo', spec:'512 Go · A18 Pro', prixAUD:1099, gst:109.9, prixVente:114000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'macbook-air-13-m5', cat:'Mac', marque:'Apple', nom:'MacBook Air 13" M5', spec:'512 Go · 16 Go RAM', prixAUD:1799, gst:179.9, prixVente:174000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'macbook-air-15-m5', cat:'Mac', marque:'Apple', nom:'MacBook Air 15" M5', spec:'512 Go · 16 Go RAM', prixAUD:2099, gst:209.9, prixVente:200000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'mac-mini-m4', cat:'Mac', marque:'Apple', nom:'Mac mini M4', spec:'256 Go · 16 Go RAM', prixAUD:999, gst:99.9, prixVente:106000, visible:true, fournisseur:'Apple Store AU' },
+  // Watch
+  { id:'watch-series-11-42', cat:'Watch', marque:'Apple', nom:'Apple Watch Series 11', spec:'42mm · GPS · Alu', prixAUD:679, gst:67.9, prixVente:78000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'watch-se3-40', cat:'Watch', marque:'Apple', nom:'Apple Watch SE 3', spec:'40mm · GPS · Alu', prixAUD:399, gst:39.9, prixVente:54000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'watch-ultra3-49', cat:'Watch', marque:'Apple', nom:'Apple Watch Ultra 3', spec:'49mm · GPS+Cell · Ti', prixAUD:1230, gst:123, prixVente:125000, visible:true, fournisseur:'Apple Store AU' },
+  // Audio
+  { id:'airpods-pro-3', cat:'Audio', marque:'Apple', nom:'AirPods Pro 3', spec:'ANC · Freq. cardiaque', prixAUD:429, gst:42.9, prixVente:57000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'airpods-4-anc', cat:'Audio', marque:'Apple', nom:'AirPods 4 ANC', spec:'Réduction bruit · H2', prixAUD:229, gst:22.9, prixVente:40000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'airpods-max-2', cat:'Audio', marque:'Apple', nom:'AirPods Max 2', spec:'Over-ear · H2 · USB-C', prixAUD:999, gst:99.9, prixVente:106000, visible:true, fournisseur:'Apple Store AU' },
+  // Accessoires
+  { id:'apple-pencil-pro', cat:'Accessoire', marque:'Apple', nom:'Apple Pencil Pro', spec:'Squeeze · Hover · iPad', prixAUD:149, gst:14.9, prixVente:33000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'airtag-x4', cat:'Accessoire', marque:'Apple', nom:'AirTag ×4', spec:'UWB · Find My', prixAUD:149, gst:14.9, prixVente:33000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'homepod-mini', cat:'Accessoire', marque:'Apple', nom:'HomePod mini', spec:'Siri · Domotique · 5 coloris', prixAUD:99, gst:9.9, prixVente:29000, visible:true, fournisseur:'Apple Store AU' },
+  // Android — Samsung
+  { id:'samsung-s26-256', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy S26', spec:'256 Go · 6,2" · Galaxy AI · Snapdragon', prixAUD:1549, gst:154.9, prixVente:148000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  { id:'samsung-s26-plus-256', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy S26+', spec:'256 Go · 6,7" · Galaxy AI · Snapdragon', prixAUD:1849, gst:184.9, prixVente:174000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  { id:'samsung-s26-ultra-256', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy S26 Ultra', spec:'256 Go · 6,9" · S Pen · Galaxy AI', prixAUD:2199, gst:219.9, prixVente:203000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  { id:'samsung-a56-5g', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy A56 5G', spec:'128 Go · 6,7" · 5G · Milieu de gamme', prixAUD:549, gst:54.9, prixVente:62000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  { id:'samsung-a36-5g', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy A36 5G', spec:'128 Go · 6,7" · 5G · Snapdragon 6 Gen', prixAUD:449, gst:44.9, prixVente:53000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  { id:'samsung-a26-5g', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy A26 5G', spec:'128 Go · 6,7" · 5G · Entrée de gamme', prixAUD:349, gst:34.9, prixVente:44000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  { id:'samsung-a16-5g', cat:'Android', marque:'Samsung', nom:'Samsung Galaxy A16 5G', spec:'128 Go · 6,7" · 5G · Le plus abordable', prixAUD:249, gst:24.9, prixVente:36000, visible:true, fournisseur:'JB Hi-Fi AU' },
+  // Android — Google Pixel
+  { id:'pixel-10-pro-256', cat:'Android', marque:'Google', nom:'Google Pixel 10 Pro', spec:'256 Go · 6,3" · Tensor G5 · Google AI', prixAUD:1849, gst:184.9, prixVente:174000, visible:true, fournisseur:'Google Store AU' },
+  { id:'pixel-10-pro-xl-256', cat:'Android', marque:'Google', nom:'Google Pixel 10 Pro XL', spec:'256 Go · 6,7" · Tensor G5 · Google AI', prixAUD:1997, gst:199.7, prixVente:186000, visible:true, fournisseur:'Google Store AU' },
+  { id:'pixel-10a-128', cat:'Android', marque:'Google', nom:'Google Pixel 10a', spec:'128 Go · 6,1" · Tensor G5 · Google AI', prixAUD:849, gst:84.9, prixVente:87000, visible:true, fournisseur:'Google Store AU' },
+];
+
+let currentFilter = 'all';
+
+function getRates(){
+  return {
+    aud: parseFloat(document.getElementById('rate-aud').value)||73,
+    douaneGlobal: parseFloat(document.getElementById('rate-douane').value)||5,
+    tgc: parseFloat(document.getElementById('rate-tgc').value)||22,
+    fret: parseFloat(document.getElementById('rate-fret').value)||4500,
+    stripe: parseFloat(document.getElementById('rate-stripe').value)||1.5,
+  };
+}
+
+let isPatente = false;
+
+function togglePatente(cb){
+  isPatente = cb.checked;
+  const track = document.getElementById('toggle-track');
+  const thumb = document.getElementById('toggle-thumb');
+  const banner = cb.closest('div[style*="rgba(255,159,10"]');
+  const label = document.getElementById('tgc-label');
+  const info = document.getElementById('tgc-info');
+  if(isPatente){
+    track.style.background = 'var(--green)';
+    thumb.style.transform = 'translateX(20px)';
+    banner.style.background = 'rgba(48,209,88,.1)';
+    banner.style.borderColor = 'rgba(48,209,88,.3)';
+    banner.querySelector('.rate-label, div').style && null;
+    banner.querySelector('[style*="orange"]').style.color = 'var(--green)';
+    banner.querySelectorAll('[style*="orange"]').forEach(el => el.style.color = 'var(--green)');
+    label.style.color = 'var(--green)';
+    label.textContent = 'TGC (récupérable)';
+    info.style.color = 'var(--green)';
+    info.textContent = '% — neutre entreprise';
+  } else {
+    track.style.background = 'var(--border2)';
+    thumb.style.transform = 'translateX(0)';
+    banner.style.background = 'rgba(255,159,10,.1)';
+    banner.style.borderColor = 'rgba(255,159,10,.3)';
+    banner.querySelectorAll('[style*="green"]').forEach(el => el.style.color = 'var(--orange)');
+    label.style.color = 'var(--orange)';
+    label.textContent = 'TGC (dans le coût)';
+    info.style.color = 'var(--orange)';
+    info.textContent = '% — non récup. sans patente';
+  }
+  recalcAll();
+}
+
+function calcProduct(p, rates){
+  const audRate = rates.aud;
+  // GST australien : 10% remboursé à l'aéroport (TRS)
+  const gst = p.prixAUD * 0.10;
+  const netAUD = p.prixAUD - gst;
+  const xpf = netAUD * audRate;
+  // DD 5% — NON récupérable dans tous les cas
+  const dd = 5;
+  const douane = xpf * (dd / 100);
+  // Assiette TGC = valeur + DD (conforme quittance Tontouta)
+  const assietteTGC = xpf + douane;
+  // TGC : utilise tgcRate par produit si l'API douane NC l'a renseigné, sinon taux global
+  const tgcRate = p.tgcRate || rates.tgc;
+  const tgc = assietteTGC * (tgcRate / 100);
+  // Sans patente : TGC non récupérable → rentre dans le coût réel
+  // Avec patente : TGC récupérable → neutre, exclu du coût réel
+  const coutReel = isPatente ? (xpf + douane) : (xpf + douane + tgc);
+  const fret = rates.fret;
+  const stripe = p.prixVente * (rates.stripe / 100);
+  const charges = fret + stripe;
+  const marge = p.prixVente - coutReel - charges;
+  const tauxMarge = p.prixVente > 0 ? (marge / p.prixVente) * 100 : 0;
+  return { gst, netAUD, xpf, douane, assietteTGC, tgc, coutReel, fret, stripe, charges, marge, tauxMarge };
+}
+
+function fmt(n){ return Math.round(n).toLocaleString('fr-FR') + ' XPF'; }
+function fmtAUD(n){ return 'A$' + Math.round(n).toLocaleString('fr-FR'); }
+function fmtPct(n){ return n.toFixed(1) + '%'; }
+
+function recalcAll(){
+  const rates = getRates();
+  const tbody = document.getElementById('table-body');
+  const rows = tbody.querySelectorAll('tr');
+  let totalMarge = 0, totalTaux = 0, count = 0, topProd = null, topMarge = 0;
+
+  products.forEach((p, i) => {
+    const c = calcProduct(p, rates);
+    const row = rows[i];
+    if(!row) return;
+    if(c.marge > topMarge){ topMarge = c.marge; topProd = p.name; }
+    if(currentFilter === 'all' || p.cat === currentFilter){
+      totalMarge += c.marge; totalTaux += c.tauxMarge; count++;
+    }
+    row.querySelector('.td-gst').textContent = fmtAUD(c.gst);
+    row.querySelector('.td-net').textContent = fmtAUD(c.netAUD);
+    row.querySelector('.td-xpf').textContent = fmt(c.xpf);
+    row.querySelector('.td-douane').textContent = fmt(c.douane);
+    row.querySelector('.td-tgc').textContent = fmt(c.tgc);
+    row.querySelector('.td-cout').textContent = fmt(c.coutReel);
+    row.querySelector('.td-charges').textContent = fmt(c.charges);
+    const margeEl = row.querySelector('.td-marge');
+    margeEl.textContent = fmt(c.marge);
+    margeEl.className = 'td-marge num ' + (c.marge > 20000 ? 'num-pos' : c.marge > 8000 ? 'num-warn' : 'num-neg');
+    const tauxEl = row.querySelector('.td-taux');
+    const tClass = c.tauxMarge >= 20 ? 'pct-hi' : c.tauxMarge >= 10 ? 'pct-mid' : 'pct-lo';
+    tauxEl.innerHTML = `<span class="pct-badge ${tClass}">${fmtPct(c.tauxMarge)}</span>`;
+    const priorityEl = row.querySelector('.td-priority');
+    if(c.tauxMarge >= 20) priorityEl.innerHTML = '<span class="priority"><span class="dot dot-green"></span>Top</span>';
+    else if(c.tauxMarge >= 10) priorityEl.innerHTML = '<span class="priority"><span class="dot dot-orange"></span>Bon</span>';
+    else priorityEl.innerHTML = '<span class="priority"><span class="dot dot-red"></span>Faible</span>';
+  });
+
+  // Update KPIs
+  if(count > 0){
+    document.getElementById('k-marge').textContent = fmt(totalMarge/count).replace(' XPF','');
+    document.getElementById('k-taux').textContent = fmtPct(totalTaux/count);
+  }
+  document.getElementById('k-top').textContent = topProd || '—';
+  document.getElementById('k-total').textContent = count || products.length;
+}
+
+function buildTable(){
+  const rates = getRates();
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  products.forEach(p => {
+    const c = calcProduct(p, rates);
+    const show = currentFilter === 'all' || p.cat === currentFilter;
+    const tr = document.createElement('tr');
+    tr.style.display = show ? '' : 'none';
+    const margeClass = c.marge > 20000 ? 'num-pos' : c.marge > 8000 ? 'num-warn' : 'num-neg';
+    const tClass = c.tauxMarge >= 20 ? 'pct-hi' : c.tauxMarge >= 10 ? 'pct-mid' : 'pct-lo';
+    const priorityHtml = c.tauxMarge >= 20 ? '<span class="priority"><span class="dot dot-green"></span>Top</span>'
+      : c.tauxMarge >= 10 ? '<span class="priority"><span class="dot dot-orange"></span>Bon</span>'
+      : '<span class="priority"><span class="dot dot-red"></span>Faible</span>';
+    const dispoHtml = p.disponible === false
+      ? '<span class="badge-indispo">Indisponible</span>'
+      : '';
+    const dispoChecked = p.disponible !== false ? 'checked' : '';
+    tr.innerHTML = `
+      <td><div class="td-product"><span class="td-cat">${p.cat}</span><span class="td-name">${p.name}${dispoHtml}</span><span class="td-spec">${p.spec}</span></div></td>
+      <td><input class="editable" value="${p.prixAUD}" onchange="updateField('${p._docId}','prixAUD',this.value.replace(/[^0-9.]/g,''))" title="Modifier le prix AU"></td>
+      <td class="num num-pos td-gst">${fmtAUD(c.gst)}</td>
+      <td class="num td-net">${fmtAUD(c.netAUD)}</td>
+      <td class="num td-xpf">${fmt(c.xpf)}</td>
+      <td class="num num-neg td-douane">${fmt(c.douane)}</td>
+      <td class="num" style="color:var(--dim)" title="Neutre — récupéré"><td-tgc class="td-tgc">${fmt(c.tgc)}</td-tgc> <span style="font-size:9px;color:var(--dim)">récup.</span></td>
+      <td class="num" style="color:var(--orange);font-weight:600"><span class="td-cout">${fmt(c.coutReel)}</span></td>
+      <td><input class="editable" value="${p.prixVente}" onchange="updateField('${p._docId}','prixVente',this.value.replace(/[^0-9]/g,''))" title="Modifier le prix de vente"></td>
+      <td class="num td-charges" style="color:var(--dim)">${fmt(c.charges)}</td>
+      <td class="num td-marge ${margeClass}" style="font-weight:600">${fmt(c.marge)}</td>
+      <td class="td-taux"><span class="pct-badge ${tClass}">${fmtPct(c.tauxMarge)}</span></td>
+      <td class="td-priority">${priorityHtml}</td>
+      <td style="text-align:center;"><label class="toggle-dispo" title="${p.disponible !== false ? 'Disponible' : 'Indisponible'}"><input type="checkbox" ${dispoChecked} onchange="toggleDisponible('${p._docId}',this.checked)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  recalcAll();
+}
+
+async function updateField(docId, field, val) {
+  if(!docId || !window._fbDb) return;
+  const numVal = field === 'prixAUD' ? parseFloat(val)||0 : parseInt(val)||0;
+  const p = products.find(p => p._docId === docId);
+  if(p) { p[field] = numVal; recalcAll(); }
+  try {
+    await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_catalogue', docId), {
+      [field]: numVal,
+      updatedAt: window._fbServerTimestamp()
+    });
+  } catch(e) { console.error('updateField error:', e); }
+}
+
+async function toggleDisponible(docId, disponible) {
+  if(!docId || !window._fbDb) return;
+  const p = products.find(p => p._docId === docId);
+  if(p) { p.disponible = disponible; }
+  try {
+    await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_catalogue', docId), {
+      disponible: disponible,
+      visible: disponible,
+      updatedAt: window._fbServerTimestamp()
+    });
+  } catch(e) { console.error('toggleDisponible error:', e); }
+}
+
+// ─── CATALOGUE FIRESTORE ─────────────────────────────────────
+const CAT_ORDER_ADMIN = { iPhone:1, iPad:2, Mac:3, Watch:4, Audio:5, Accessoire:6, Android:7 };
+let _unsubscribeCatalogue = null;
+
+function loadCatalogue() {
+  if(!window._fbDb) { setTimeout(loadCatalogue, 150); return; }
+  if(_unsubscribeCatalogue) _unsubscribeCatalogue();
+  _unsubscribeCatalogue = window._fbOnSnapshot(
+    window._fbCollection(window._fbDb, 'technc_catalogue'),
+    (snapshot) => {
+      products = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          _docId: d.id,
+          cat: data.cat,
+          name: data.nom,
+          spec: data.spec || '',
+          prixAUD: data.prixAUD || 0,
+          prixVente: data.prixVente || 0,
+          douane: data.douane || 5,
+          tgcRate: data.tgcRate,
+          marque: data.marque,
+          visible: data.visible,
+          disponible: data.disponible !== false,
+        };
+      });
+      products.sort((a, b) => (CAT_ORDER_ADMIN[a.cat]||99) - (CAT_ORDER_ADMIN[b.cat]||99));
+      buildTable();
+    },
+    (err) => { console.error('loadCatalogue error:', err); }
+  );
+}
+
+async function seedCatalogue() {
+  if(!window._fbDb) { alert('Firebase non prêt — réessaie dans un instant.'); return; }
+  const btn = document.getElementById('seed-btn');
+  btn.disabled = true; btn.textContent = '⟳ Seeding…';
+  try {
+    for(const p of SEED_CATALOGUE) {
+      await window._fbSetDoc(window._fbDoc(window._fbDb, 'technc_catalogue', p.id), {
+        ...p,
+        updatedAt: window._fbServerTimestamp()
+      });
+    }
+    btn.textContent = '✓ Seed OK';
+    setTimeout(() => { btn.textContent = '⚡ Seed DB'; btn.disabled = false; }, 3000);
+  } catch(e) {
+    alert('Erreur seed : ' + e.message);
+    btn.textContent = '⚡ Seed DB'; btn.disabled = false;
+  }
+}
+
+function filterCat(cat, btn){
+  currentFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const rows = document.getElementById('table-body').querySelectorAll('tr');
+  products.forEach((p, i) => {
+    rows[i].style.display = (cat === 'all' || p.cat === cat) ? '' : 'none';
+  });
+  recalcAll();
+}
+
+const SECTION_TITLES = { catalogue:'Catalogue & Marges', commandes:'Commandes', voyages:'Voyages', simulator:'Simulateur de marge' };
+
+function scrollToSection(id) {
+  const el = document.getElementById('page-' + id);
+  if(el) el.scrollIntoView({ behavior:'smooth' });
+  if(id === 'commandes') loadOrders();
+}
+
+function initScrollSpy() {
+  const main = document.querySelector('.main');
+  const navItems = document.querySelectorAll('.nav-item[data-section]');
+  const sections = ['catalogue', 'commandes', 'voyages', 'simulator'];
+
+  const setActive = (id) => {
+    navItems.forEach(n => n.classList.remove('active'));
+    const active = document.querySelector(`.nav-item[data-section="${id}"]`);
+    if(active) active.classList.add('active');
+    document.getElementById('page-title').textContent = SECTION_TITLES[id] || id;
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    const visible = entries.filter(e => e.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if(visible.length > 0) {
+      setActive(visible[0].target.id.replace('page-', ''));
+    }
+  }, {
+    root: null,
+    threshold: 0,
+    rootMargin: '-52px 0px -75% 0px',
+  });
+
+  sections.forEach(id => {
+    const el = document.getElementById('page-' + id);
+    if(el) observer.observe(el);
+  });
+
+  // Set initial active based on scroll position
+  setActive('catalogue');
+}
+
+function simulate(){
+  const aud = parseFloat(document.getElementById('sim-aud').value);
+  const vente = parseFloat(document.getElementById('sim-vente').value);
+  const douaneRate = parseFloat(document.getElementById('sim-douane').value) / 100;
+  const fret = parseFloat(document.getElementById('sim-fret').value);
+  const rates = getRates();
+  if(!aud || !vente){ document.getElementById('sim-results').style.display='none'; return; }
+  // Même logique que calcProduct — conforme quittance douane NC
+  const gst = aud * 0.10;
+  const net = aud - gst;
+  const xpf = net * rates.aud;
+  const douane = xpf * douaneRate; // DD non récupérable
+  const assietteTGC = xpf + douane;
+  const tgc = assietteTGC * (rates.tgc / 100); // TGC récupérable → neutre entreprise
+  const cout = xpf + douane; // TGC exclu (neutre)
+  const stripe = vente * (rates.stripe / 100);
+  const charges = fret + stripe;
+  const marge = vente - cout - charges;
+  const taux = (marge / vente) * 100;
+  document.getElementById('sr-gst').textContent = 'A$' + gst.toFixed(0) + ' (récupéré TRS)';
+  document.getElementById('sr-net').textContent = Math.round(xpf).toLocaleString('fr-FR') + ' XPF';
+  document.getElementById('sr-douane').textContent = '-' + Math.round(douane).toLocaleString('fr-FR') + ' XPF (DD 5%, non récup.)';
+  document.getElementById('sr-cout').textContent = Math.round(cout).toLocaleString('fr-FR') + ' XPF + TGC ' + Math.round(tgc).toLocaleString('fr-FR') + ' (récup.)';
+  document.getElementById('sr-charges').textContent = '-' + Math.round(charges).toLocaleString('fr-FR') + ' XPF';
+  const m = document.getElementById('sr-marge');
+  m.textContent = (marge >= 0 ? '+' : '') + Math.round(marge).toLocaleString('fr-FR') + ' XPF';
+  m.style.color = marge >= 0 ? 'var(--green)' : 'var(--red)';
+  const t = document.getElementById('sr-taux');
+  t.textContent = taux.toFixed(1) + '%';
+  t.style.color = taux >= 20 ? 'var(--green)' : taux >= 10 ? 'var(--orange)' : 'var(--red)';
+  document.getElementById('sim-results').style.display = 'block';
+}
+
+function exportCSV(){
+  const rates = getRates();
+  const rows = [['Catégorie','Produit','Spec','Prix AU','GST récupéré','Net AU','Coût XPF','Douane','Coût réel','Prix vente','Charges','Marge nette','% Marge']];
+  products.forEach(p => {
+    const c = calcProduct(p, rates);
+    rows.push([p.cat, p.name, p.spec, p.prixAUD, Math.round(c.gst), Math.round(c.netAUD), Math.round(c.xpf), Math.round(c.douane), Math.round(c.coutReel), p.prixVente, Math.round(c.charges), Math.round(c.marge), c.tauxMarge.toFixed(1)+'%']);
+  });
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'technc_catalogue_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ─── NOMENCLATURES DOUANIÈRES NC ────────────────────────────
+// Source : quittance Tontouta + codes SH standards
+const NOMENCLATURES = {
+  'iPhone':      { td: '8517.13.00', libelle: 'Téléphones pour réseaux cellulaires' },
+  'iPad':        { td: '8471.30.00', libelle: 'Machines traitement info portatives (tablettes)' },
+  'Mac':         { td: '8471.30.00', libelle: 'Machines traitement info portatives (ordinateurs)' },
+  'Watch':       { td: '9102.12.00', libelle: 'Montres-bracelets électroniques' },
+  'Audio':       { td: '8518.30.00', libelle: 'Écouteurs et casques, combinés ou non' },
+  'Accessoire':  { td: '8473.30.00', libelle: 'Parties et accessoires appareils électroniques' },
+};
+
+// ─── APIs OPEN DATA NC ──────────────────────────────────────
+const ODS_BASE = 'https://nouvelle-caledonie.opendatasoft.com/api/explore/v2.1/catalog/datasets';
+
+async function fetchTauxDouane(td) {
+  try {
+    const url = `${ODS_BASE}/referentiel-douanier-tarif-douanier-compilation/records?where=td%3D%22${encodeURIComponent(td)}%22&limit=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const r = data.results[0];
+      // Champs typiques : dd (droit de douane %), tgc (taux TGC %)
+      return {
+        dd: parseFloat(r.dd || r.tdd || 0),
+        tgc: parseFloat(r.tgc || r.ttgc || 0),
+        libelle: r.lib || r.libelle || '',
+        source: 'API douane.gouv.nc (live)',
+      };
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function fetchTauxChangeDouane() {
+  try {
+    const url = `${ODS_BASE}/referentiel-douanier-taux-de-change/records?where=devise%3D%22AUD%22&limit=1&order_by=date_fin_validite%20desc`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const r = data.results[0];
+      const taux = parseFloat(r.taux_xpf || r.taux || 0);
+      if (taux > 0) return { taux, source: 'Taux officiel douane NC', date: r.date_fin_validite };
+    }
+  } catch(e) {}
+  return null;
+}
+
+// ─── TAUX AUD/XPF EN TEMPS RÉEL ────────────────────────────
+async function fetchRate(){
+  const btn = document.getElementById('rate-btn');
+  const status = document.getElementById('rate-status');
+  btn.textContent = '⟳ …';
+  btn.style.opacity = '0.6';
+  status.style.color = 'var(--dim)';
+  status.textContent = 'Récupération en cours…';
+
+  // Priorité 1 : taux officiel douane NC (dernier vendredi du mois précédent)
+  const tauxDouane = await fetchTauxChangeDouane();
+  if (tauxDouane && tauxDouane.taux > 0) {
+    document.getElementById('rate-aud').value = tauxDouane.taux.toFixed(4);
+    status.textContent = `✓ Taux officiel douane NC — valide jusqu'au ${tauxDouane.date || '?'} | ${tauxDouane.source}`;
+    status.style.color = 'var(--green)';
+    btn.textContent = '⟳ Live';
+    btn.style.opacity = '1';
+    recalcAll();
+    return;
+  }
+
+  // Priorité 2 : exchangerate.host (marché)
+  try {
+    const res = await fetch('https://api.exchangerate.host/convert?from=AUD&to=XPF&amount=1');
+    const data = await res.json();
+    if (data && data.result) {
+      const rate = parseFloat(data.result.toFixed(4));
+      document.getElementById('rate-aud').value = rate;
+      const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      status.textContent = `✓ Taux marché à ${time} — source: exchangerate.host`;
+      status.style.color = 'var(--accent)'; // bleu = marché, pas officiel
+      btn.textContent = '⟳ Live';
+      btn.style.opacity = '1';
+      recalcAll();
+      return;
+    }
+  } catch(e) {}
+
+  // Priorité 3 : frankfurter.app
+  try {
+    const res2 = await fetch('https://api.frankfurter.app/latest?from=AUD&to=XPF');
+    const data2 = await res2.json();
+    if (data2 && data2.rates && data2.rates.XPF) {
+      const rate = parseFloat(data2.rates.XPF.toFixed(4));
+      document.getElementById('rate-aud').value = rate;
+      const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      status.textContent = `✓ Taux marché à ${time} — source: frankfurter.app`;
+      status.style.color = 'var(--accent)';
+      btn.textContent = '⟳ Live';
+      btn.style.opacity = '1';
+      recalcAll();
+      return;
+    }
+  } catch(e) {}
+
+  status.innerHTML = '⚠ API indisponible — taux manuel : 73 XPF/AUD<br><span style="color:var(--dim);font-size:10px;">Modifie manuellement si nécessaire</span>';
+  status.style.color = 'var(--orange)';
+  btn.textContent = '⟳ Live';
+  btn.style.opacity = '1';
+}
+
+// ─── FETCH DD + TGC PAR NOMENCLATURE ────────────────────────
+async function fetchCustomsTaxes() {
+  const statusEl = document.getElementById('customs-status');
+  if (statusEl) {
+    statusEl.textContent = 'Vérification taux douane NC en cours…';
+    statusEl.style.color = 'var(--dim)';
+  }
+
+  let updated = 0;
+  const cats = Object.keys(NOMENCLATURES);
+  for (const cat of cats) {
+    const nom = NOMENCLATURES[cat];
+    const result = await fetchTauxDouane(nom.td);
+    if (result && (result.dd > 0 || result.tgc > 0)) {
+      // Met à jour les produits de cette catégorie si les taux diffèrent
+      products.forEach(p => {
+        if (p.cat === cat) {
+          if (result.dd > 0) p.douane = result.dd;
+          if (result.tgc > 0) p.tgcRate = result.tgc;
+          updated++;
+        }
+      });
+    }
+  }
+
+  if (statusEl) {
+    if (updated > 0) {
+      statusEl.textContent = `✓ ${updated} produits mis à jour depuis API douane.gouv.nc`;
+      statusEl.style.color = 'var(--green)';
+    } else {
+      statusEl.textContent = 'API douane NC non accessible — taux manuels utilisés';
+      statusEl.style.color = 'var(--orange)';
+    }
+    recalcAll();
+  }
+}
+
+// ─── CRÉNEAUX (Firestore) ────────────────────────────────────
+let _unsubscribeCreneaux = null;
+
+function renderCreneaux(list) {
+  const container = document.getElementById('creneaux-list');
+  if(!container) return;
+
+  const open = list.filter(c => c.statut === 'ouvert');
+  const totalCmds = open.reduce((s, c) => s + (c.nbCommandes || 0), 0);
+  const totalBudget = open.reduce((s, c) => s + (c.budgetEstimeAUD || 0), 0);
+  document.getElementById('k-creneaux-total').textContent = list.length;
+  document.getElementById('k-creneaux-ouverts').textContent = open.length;
+  document.getElementById('k-creneaux-cmds').textContent = totalCmds;
+  document.getElementById('k-creneaux-budget').textContent = totalBudget > 0 ? 'A$' + totalBudget.toLocaleString('fr-FR') : '—';
+
+  if(list.length === 0) {
+    container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:36px;text-align:center;color:var(--dim);"><div style="font-size:24px;margin-bottom:8px;">✈️</div><div style="font-size:13px;">Aucun créneau créé — utilisez le formulaire ci-dessus</div></div>`;
+    return;
+  }
+
+  const sorted = [...list].sort((a, b) => a.dateDepart > b.dateDepart ? 1 : -1);
+  const MOIS = ['jan.','fév.','mar.','avr.','mai','jun.','jul.','aoû.','sep.','oct.','nov.','déc.'];
+  const fmtDate = s => { const d = new Date(s); return `${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`; };
+
+  const STATUT_STYLE = {
+    ouvert:  { color:'var(--green)',  bg:'var(--green-dim)',  label:'● Ouvert' },
+    ferme:   { color:'var(--orange)', bg:'var(--orange-dim)', label:'◌ Fermé' },
+    termine: { color:'var(--dim)',    bg:'rgba(255,255,255,.05)', label:'✓ Terminé' },
+  };
+
+  container.innerHTML = sorted.map(c => {
+    const st = STATUT_STYLE[c.statut] || STATUT_STYLE.ferme;
+    const actions = c.statut === 'ouvert'
+      ? `<button class="btn btn-ghost btn-sm" onclick="toggleStatut('${c.id}','ferme')">Fermer</button>`
+      : c.statut === 'ferme'
+      ? `<button class="btn btn-ghost btn-sm" onclick="toggleStatut('${c.id}','ouvert')" style="color:var(--green)">Ouvrir ↗</button>`
+      : '';
+    return `
+      <div class="voyage-card">
+        <div class="voyage-header">
+          <span class="voyage-title">✈️ ${c.titre}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="background:${st.bg};color:${st.color};border-radius:980px;padding:3px 10px;font-size:11px;font-weight:600;">${st.label}</span>
+            ${actions}
+            <button class="btn btn-ghost btn-sm" onclick="setCreneauTermine('${c.id}')" style="font-size:10px;color:var(--dim);">Terminé</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteCreneau('${c.id}')" style="color:var(--red);">✕</button>
+          </div>
+        </div>
+        <div class="voyage-stats">
+          <div class="voyage-stat"><div class="voyage-stat-label">Départ</div><div class="voyage-stat-val">${fmtDate(c.dateDepart)}</div></div>
+          <div class="voyage-stat"><div class="voyage-stat-label">Retour</div><div class="voyage-stat-val">${c.dateRetour ? fmtDate(c.dateRetour) : '—'}</div></div>
+          <div class="voyage-stat"><div class="voyage-stat-label">Clôture commandes</div><div class="voyage-stat-val">${fmtDate(c.dateClotureCommandes)}</div></div>
+          <div class="voyage-stat"><div class="voyage-stat-label">Commandes reçues</div><div class="voyage-stat-val" style="color:var(--accent)">${c.nbCommandes || 0}</div></div>
+          <div class="voyage-stat"><div class="voyage-stat-label">Budget estimé</div><div class="voyage-stat-val">${c.budgetEstimeAUD ? 'A$' + c.budgetEstimeAUD.toLocaleString('fr-FR') : '—'}</div></div>
+          ${c.notes ? `<div class="voyage-stat" style="grid-column:1/-1"><div class="voyage-stat-label">Notes</div><div class="voyage-stat-val" style="font-size:12px;color:var(--mid)">${c.notes}</div></div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function loadCreneaux() {
+  if(!window._fbDb) { setTimeout(loadCreneaux, 150); return; }
+  if(_unsubscribeCreneaux) _unsubscribeCreneaux();
+  _unsubscribeCreneaux = window._fbOnSnapshot(
+    window._fbCollection(window._fbDb, 'technc_creneaux'),
+    snap => renderCreneaux(snap.docs.map(d => d.data())),
+    err => console.error('loadCreneaux error:', err)
+  );
+}
+
+async function createCreneau() {
+  const titre = document.getElementById('cr-titre').value.trim();
+  const dateDepart = document.getElementById('cr-depart').value;
+  const dateCloture = document.getElementById('cr-cloture').value;
+  const dateRetour = document.getElementById('cr-retour').value;
+  const budget = parseFloat(document.getElementById('cr-budget').value) || 0;
+  const notes = document.getElementById('cr-notes').value.trim();
+  if(!titre || !dateDepart || !dateCloture) { alert('Titre, date de départ et clôture sont requis.'); return; }
+  const id = titre.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const data = { id, titre, dateDepart, dateRetour: dateRetour || null, dateClotureCommandes: dateCloture, statut: 'ferme', nbCommandes: 0, budgetEstimeAUD: budget, notes };
+  await window._fbSetDoc(window._fbDoc(window._fbDb, 'technc_creneaux', id), { ...data, updatedAt: window._fbServerTimestamp() });
+  ['cr-titre','cr-depart','cr-retour','cr-cloture','cr-budget','cr-notes'].forEach(i => { document.getElementById(i).value = ''; });
+}
+
+async function toggleStatut(id, newStatut) {
+  if(!window._fbDb) return;
+  if(newStatut === 'ouvert') {
+    const snap = await window._fbGetDocs(window._fbCollection(window._fbDb, 'technc_creneaux'));
+    for(const d of snap.docs) {
+      if(d.data().statut === 'ouvert') {
+        await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_creneaux', d.id), { statut: 'ferme', updatedAt: window._fbServerTimestamp() });
+      }
+    }
+  }
+  await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_creneaux', id), { statut: newStatut, updatedAt: window._fbServerTimestamp() });
+}
+
+async function setCreneauTermine(id) {
+  if(!confirm('Marquer ce créneau comme terminé ?')) return;
+  await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_creneaux', id), { statut: 'termine', updatedAt: window._fbServerTimestamp() });
+}
+
+async function deleteCreneau(id) {
+  if(!confirm('Supprimer définitivement ce créneau ?')) return;
+  await window._fbDeleteDoc(window._fbDoc(window._fbDb, 'technc_creneaux', id));
+}
+
+// ─── COMMANDES (Firestore) ───────────────────────────────────
+let _unsubscribeOrders = null;
+
+const STATUT_STEPS = [
+  { key:'confirme',    label:'Confirmée',          sub:'Commande reçue et validée.' },
+  { key:'preparation', label:'En préparation',     sub:'Produit en cours d\'acquisition.' },
+  { key:'australie',  label:'Parti en Australie',  sub:'Voyage en cours — achat sur place.' },
+  { key:'livre',      label:'Livré',               sub:'Commande remise au client à Nouméa.' },
+];
+const STATUT_KEYS = STATUT_STEPS.map(s => s.key);
+const STATUT_MAP = {
+  confirme:    { label:'Confirmée',         cls:'status-confirmed' },
+  preparation: { label:'En préparation',    cls:'status-pending' },
+  australie:   { label:'En Australie',      cls:'status-pending' },
+  livre:       { label:'Livré',             cls:'status-delivered' },
+  en_attente:  { label:'En attente',        cls:'status-pending' },
+};
+
+// ─── PANEL ───────────────────────────────────────────────────
+function openOrderPanel(docId) {
+  const order = (window._currentOrders||[]).find(o => o._docId === docId);
+  if(!order) return;
+  window._openPanelDocId = docId;
+  renderPanel(order);
+  document.getElementById('panel-overlay').classList.add('open');
+  document.getElementById('order-panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOrderPanel() {
+  window._openPanelDocId = null;
+  document.getElementById('panel-overlay').classList.remove('open');
+  document.getElementById('order-panel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function renderPanelIfOpen() {
+  if(!window._openPanelDocId) return;
+  const active = document.activeElement;
+  if(active && active.classList.contains('pnotes')) return;
+  const order = (window._currentOrders||[]).find(o => o._docId === window._openPanelDocId);
+  if(order) renderPanel(order);
+}
+
+function renderPanel(o) {
+  const docId = o._docId;
+  const code = o.code || o.id || '—';
+  const clientName = o.client?.prenom ? `${o.client.prenom} ${o.client.nom||''}`.trim() : (o.client?.name||'—');
+  const paiements = o.paiements || [];
+  const totalPrix = o.prix || 0;
+  const totalPaye = paiements.filter(p => p.statut === 'paye').reduce((s,p) => s + (p.amount||0), 0);
+  const totalRestant = totalPrix - totalPaye;
+  const pct = totalPrix > 0 ? Math.round(totalPaye / totalPrix * 100) : 0;
+  const currentIdx = STATUT_KEYS.indexOf(o.statut || 'confirme');
+  const isLastStatut = currentIdx >= STATUT_KEYS.length - 1;
+  const nextLabel = !isLastStatut ? STATUT_STEPS[currentIdx + 1].label : '';
+  const MOIS_LONG = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const dateCmd = o.date ? new Date(o.date) : null;
+  const dateCmdStr = dateCmd ? `${dateCmd.getDate()} ${MOIS_LONG[dateCmd.getMonth()]} ${dateCmd.getFullYear()}` : '—';
+  const phone = (o.client?.phone||'').replace(/[^0-9]/g,'');
+
+  document.getElementById('panel-code').textContent = code;
+  document.getElementById('panel-body').innerHTML = `
+    <div class="psec">
+      <div class="psec-title">Infos client</div>
+      <div class="prow"><span class="plabel">Prénom · Nom</span><span class="pval">${clientName}</span></div>
+      <div class="prow"><span class="plabel">Téléphone</span><span class="pval">${o.client?.phone||'—'}</span></div>
+      ${o.client?.email ? `<div class="prow"><span class="plabel">Email</span><span class="pval" style="word-break:break-all;">${o.client.email}</span></div>` : ''}
+      <div class="prow">
+        <span class="plabel">Code suivi</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="pval" style="color:var(--accent);font-weight:700;">${code}</span>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;" onclick="navigator.clipboard.writeText('${code}').then(()=>this.textContent='Copié!');setTimeout(()=>this.textContent='Copier',1500)">Copier</button>
+        </div>
+      </div>
+      <div>
+        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-sm" style="color:var(--green);text-decoration:none;">💬 Ouvrir WhatsApp</a>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Commande</div>
+      <div class="prow"><span class="plabel">Produit</span><span class="pval">${o.produit||'—'}</span></div>
+      ${o.coloris ? `<div class="prow"><span class="plabel">Coloris</span><span class="pval">${o.coloris}</span></div>` : ''}
+      <div class="prow"><span class="plabel">Prix verrouillé</span><span class="pval" style="color:var(--accent);font-weight:700;">${totalPrix.toLocaleString('fr-FR')} XPF</span></div>
+      <div class="prow"><span class="plabel">Taux AUD</span><span class="pval">🔒 ${(o.tauxAUD||0).toFixed(4)} AUD/XPF</span></div>
+      <div class="prow"><span class="plabel">Source taux</span><span class="pval" style="font-size:11px;color:var(--dim);">${o.tauxSource||'—'}</span></div>
+      <div class="prow"><span class="plabel">Date commande</span><span class="pval">${dateCmdStr}</span></div>
+      <div class="prow"><span class="plabel">Créneau</span><span class="pval">${o.creneau||'—'}</span></div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Plan de paiement</div>
+      ${paiements.length > 0 ? `
+        <div>
+          ${paiements.map((p, i) => `
+            <div class="ppay-row" style="flex-wrap:wrap;gap:5px;">
+              <span class="ppay-label">${p.label}</span>
+              <span class="ppay-amount">${(p.amount||0).toLocaleString('fr-FR')} XPF</span>
+              <span class="ppay-status">${payStatutIcon(p.statut)}</span>
+              <div style="display:flex;gap:4px;flex-shrink:0;">
+                ${p.statut === 'en_attente_confirmation'
+                  ? `<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;color:var(--green);border-color:var(--green);" onclick="markPaymentPaid('${docId}',${i})">✅ Confirmer réception</button>`
+                  : p.statut !== 'paye' ? `<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;color:var(--green);" onclick="markPaymentPaid('${docId}',${i})">✅</button>` : ''}
+                ${p.statut !== 'retard' && p.statut !== 'paye' && p.statut !== 'en_attente_confirmation' ? `<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;color:var(--red);" onclick="markPaymentRetard('${docId}',${i})">❌</button>` : ''}
+              </div>
+              ${p.noteClient ? `<div style="flex-basis:100%;font-size:10px;color:var(--orange);padding-top:4px;border-top:1px solid var(--border);">${p.noteClient}</div>` : ''}
+            </div>`).join('')}
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px;">
+            <span>Progression</span><span>${pct}% · ${totalPaye.toLocaleString('fr-FR')} / ${totalPrix.toLocaleString('fr-FR')} XPF</span>
+          </div>
+          <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:var(--green);border-radius:6px;transition:width .4s;"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:var(--green-dim);border-radius:var(--rs);padding:10px 12px;text-align:center;">
+            <div style="font-size:10px;color:var(--dim);margin-bottom:3px;">Payé</div>
+            <div style="font-size:15px;font-weight:700;color:var(--green);">${totalPaye.toLocaleString('fr-FR')}<span style="font-size:10px;font-weight:400;color:var(--dim);"> XPF</span></div>
+          </div>
+          <div style="background:${totalRestant > 0 ? 'var(--red-dim)' : 'var(--green-dim)'};border-radius:var(--rs);padding:10px 12px;text-align:center;">
+            <div style="font-size:10px;color:var(--dim);margin-bottom:3px;">Restant</div>
+            <div style="font-size:15px;font-weight:700;color:${totalRestant > 0 ? 'var(--red)' : 'var(--green)'};">${totalRestant.toLocaleString('fr-FR')}<span style="font-size:10px;font-weight:400;color:var(--dim);"> XPF</span></div>
+          </div>
+        </div>
+        <div style="padding:10px 0 0;">
+          <div style="font-size:11px;color:var(--mid);margin-bottom:5px;">💳 Lien de paiement</div>
+          <input type="url" value="${o.lienPaiement||''}" placeholder="https://buy.stripe.com/…" onchange="updateOrderField('${docId}','lienPaiement',this.value.trim())" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <div style="font-size:10px;color:var(--dim);margin-top:4px;">Le client verra un bouton Payer en ligne dans son suivi.</div>
+        </div>
+      ` : `<div style="font-size:12px;color:var(--dim);">Aucun plan de paiement pour cette commande.</div>`}
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Statut &amp; Livraison</div>
+      <div class="ptl">
+        ${STATUT_STEPS.map((step, i) => {
+          const dotCls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : '';
+          return `<div class="ptl-item">
+            <div class="ptl-dot ${dotCls}"></div>
+            <div class="ptl-body">
+              <div class="ptl-name" style="color:${i <= currentIdx ? 'var(--text)' : 'var(--dim)'};">${step.label}</div>
+              <div class="ptl-sub">${step.sub}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${!isLastStatut
+        ? `<button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="advanceOrderStatut('${docId}')">Avancer → ${nextLabel}</button>`
+        : `<div style="background:var(--green-dim);border-radius:var(--rs);padding:8px 12px;font-size:12px;color:var(--green);font-weight:600;">✓ Commande livrée</div>`}
+      <div>
+        <div style="font-size:12px;color:var(--mid);margin-bottom:6px;">Date de livraison estimée</div>
+        <input type="date" value="${o.dateLivraison||''}" onchange="updateOrderField('${docId}','dateLivraison',this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;color:var(--text);cursor:pointer;outline:none;font-family:inherit;">
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Notes internes</div>
+      <textarea class="pnotes" placeholder="Notes visibles uniquement en admin…" onblur="updateOrderField('${docId}','notes',this.value)">${o.notes||''}</textarea>
+    </div>
+
+    <div style="padding-top:4px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteOrder('${docId}')">Supprimer la commande</button>
+    </div>
+  `;
+}
+
+async function advanceOrderStatut(docId) {
+  const order = (window._currentOrders||[]).find(o => o._docId === docId);
+  if(!order) return;
+  const idx = STATUT_KEYS.indexOf(order.statut || 'confirme');
+  if(idx < 0 || idx >= STATUT_KEYS.length - 1) return;
+  await updateOrderField(docId, 'statut', STATUT_KEYS[idx + 1]);
+}
+
+function payStatutIcon(s) {
+  if(s === 'paye') return '✅ Payé';
+  if(s === 'retard') return '❌ En retard';
+  if(s === 'en_attente_confirmation') return '<span style="color:var(--orange);">⏳ À confirmer</span>';
+  return '⌛ En attente';
+}
+
+async function markPaymentPaid(docId, idx) {
+  const orders = window._currentOrders || [];
+  const order = orders.find(o => o._docId === docId);
+  if(!order || !order.paiements) return;
+  const updated = order.paiements.map((p, i) => i === idx ? { ...p, statut: 'paye' } : p);
+  await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_orders', docId), { paiements: updated });
+}
+
+async function markPaymentRetard(docId, idx) {
+  const orders = window._currentOrders || [];
+  const order = orders.find(o => o._docId === docId);
+  if(!order || !order.paiements) return;
+  const updated = order.paiements.map((p, i) => i === idx ? { ...p, statut: 'retard' } : p);
+  await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_orders', docId), { paiements: updated });
+}
+
+async function updateOrderField(docId, field, value) {
+  await window._fbUpdateDoc(window._fbDoc(window._fbDb, 'technc_orders', docId), { [field]: value });
+}
+
+function renderOrders(orders){
+  window._currentOrders = orders;
+  const list = document.getElementById('orders-list');
+  if(!list) return;
+
+  if(orders.length === 0){
+    list.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:36px;text-align:center;color:var(--dim);">
+        <div style="font-size:28px;margin-bottom:10px;">📋</div>
+        <div style="font-size:13px;margin-bottom:6px;">Aucune commande reçue pour l'instant</div>
+        <div style="font-size:11px;color:var(--dim);">Les commandes passées depuis la vitrine apparaissent ici automatiquement</div>
+      </div>`;
+    document.getElementById('k-orders-count').textContent = '0';
+    document.getElementById('k-orders-ca').textContent = '0';
+    document.getElementById('k-orders-taux').textContent = '—';
+    document.getElementById('k-orders-marge').textContent = '—';
+    renderPanelIfOpen();
+    return;
+  }
+
+  const totalCA = orders.reduce((s,o) => s + (o.prix||0), 0);
+  const avgTaux = orders.reduce((s,o) => s + (o.tauxAUD||0), 0) / orders.length;
+  document.getElementById('k-orders-count').textContent = orders.length;
+  document.getElementById('k-orders-ca').textContent = totalCA.toLocaleString('fr-FR');
+  document.getElementById('k-orders-taux').textContent = avgTaux.toFixed(2);
+  document.getElementById('k-orders-marge').textContent = '~' + Math.round(totalCA * 0.10).toLocaleString('fr-FR');
+
+  list.innerHTML = orders.slice().reverse().map(o => {
+    const date = new Date(o.date);
+    const dateStr = date.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+    const paiements = o.paiements || [];
+    const codeDisplay = o.code || o.id || '—';
+    const clientName = o.client?.prenom ? `${o.client.prenom} ${o.client.nom||''}`.trim() : (o.client?.name||'—');
+    const totalPrix = o.prix || 0;
+    const totalPaye = paiements.filter(p => p.statut === 'paye').reduce((s,p) => s + (p.amount||0), 0);
+    const pct = totalPrix > 0 ? Math.round(totalPaye / totalPrix * 100) : 0;
+    const st = STATUT_MAP[o.statut] || STATUT_MAP.en_attente;
+
+    return `
+      <div class="order-card" onclick="openOrderPanel('${o._docId}')">
+        <div class="order-left">
+          <span class="order-num">${codeDisplay} · ${dateStr}</span>
+          <span class="order-name">${clientName}</span>
+          <span class="order-prod">${o.produit||'—'}${o.coloris ? ' · '+o.coloris : ''}</span>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+          <span class="order-amount">${totalPrix.toLocaleString('fr-FR')} XPF</span>
+          <div class="progress-bar" style="width:80px;">
+            <div class="progress-fill" style="width:${pct}%;"></div>
+          </div>
+          <span style="font-size:10px;color:var(--dim);">${totalPaye.toLocaleString('fr-FR')} payés · ${pct}%</span>
+        </div>
+        <span class="order-status ${st.cls}">${st.label}</span>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteOrder('${o._docId}')" style="color:var(--red);flex-shrink:0;" title="Supprimer">✕</button>
+      </div>`;
+  }).join('');
+
+  renderPanelIfOpen();
+}
+
+function loadOrders(){
+  if(_unsubscribeOrders) _unsubscribeOrders();
+  const list = document.getElementById('orders-list');
+  if(!list || !window._fbDb) return;
+  const q = window._fbCollection(window._fbDb, 'technc_orders');
+  _unsubscribeOrders = window._fbOnSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    renderOrders(orders);
+  }, (err) => { console.error('Firestore snapshot error:', err); });
+}
+
+async function deleteOrder(docId){
+  if(!confirm('Supprimer cette commande ?')) return;
+  closeOrderPanel();
+  await window._fbDeleteDoc(window._fbDoc(window._fbDb, 'technc_orders', docId));
+}
+
+async function exportOrders(){
+  if(!window._fbDb){ alert('Firebase non initialisé.'); return; }
+  const snapshot = await window._fbGetDocs(window._fbCollection(window._fbDb, 'technc_orders'));
+  const orders = snapshot.docs.map(d => d.data());
+  if(orders.length === 0){ alert('Aucune commande à exporter.'); return; }
+  const rows = [['Code','Date','Prénom','Nom','Email','Téléphone','Produit','Coloris','Prix XPF','Taux AUD verrouillé','Source taux','Créneau','Statut','Message']];
+  orders.forEach(o => rows.push([
+    o.code||o.id, o.dateFormatted,
+    o.client?.prenom||(o.client?.name||''), o.client?.nom||'',
+    o.client?.email||'', o.client?.phone||'',
+    o.produit, o.coloris, o.prix, o.tauxAUD, o.tauxSource, o.creneau, o.statut, o.message
+  ]));
+  const csv = rows.map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'commandes_technc_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ─── AJOUT PRODUIT ───────────────────────────────────────────
+let _apVenteSuggere = 0;
+
+function openAddPanel() {
+  document.getElementById('add-panel-overlay').classList.add('open');
+  document.getElementById('add-panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAddPanel() {
+  document.getElementById('add-panel-overlay').classList.remove('open');
+  document.getElementById('add-panel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function updateAddCalcs() {
+  const prixAUD = parseFloat(document.getElementById('ap-prix').value) || 0;
+  const rates = getRates();
+  if (!prixAUD) {
+    document.getElementById('ap-calc-gst').textContent = '—';
+    document.getElementById('ap-calc-cout').textContent = '—';
+    document.getElementById('ap-calc-vente').textContent = '—';
+    _apVenteSuggere = 0;
+    return;
+  }
+  const gst = prixAUD * 0.10;
+  const netAUD = prixAUD - gst;
+  const xpf = netAUD * rates.aud;
+  const douane = xpf * 0.05;
+  const assietteTGC = xpf + douane;
+  const tgc = assietteTGC * (rates.tgc / 100);
+  const coutReel = isPatente ? (xpf + douane) : (xpf + douane + tgc);
+  _apVenteSuggere = Math.round(coutReel + 15000);
+  document.getElementById('ap-calc-gst').textContent = 'A$' + Math.round(gst) + ' récupéré (TRS aéroport)';
+  document.getElementById('ap-calc-cout').textContent = Math.round(coutReel).toLocaleString('fr-FR') + ' XPF';
+  document.getElementById('ap-calc-vente').textContent = _apVenteSuggere.toLocaleString('fr-FR') + ' XPF';
+}
+
+function applyVenteSuggere() {
+  if (_apVenteSuggere > 0) document.getElementById('ap-vente').value = _apVenteSuggere;
+}
+
+function searchPrix() {
+  const nom = document.getElementById('ap-nom').value.trim();
+  if (!nom) { alert('Entrez d\'abord un nom de produit.'); return; }
+  const q = encodeURIComponent(nom);
+  window.open('https://www.jbhifi.com.au/search?query=' + q, '_blank');
+  window.open('https://www.apple.com/au/search/' + q, '_blank');
+  window.open('https://www.harveynorman.com.au/search?q=' + q, '_blank');
+  const el = document.getElementById('ap-price-results');
+  el.style.display = 'flex';
+  el.innerHTML = '<div style="font-size:12px;color:var(--mid);padding:4px 0;">🔍 3 onglets ouverts — copie le prix trouvé ici :</div>';
+  const input = document.getElementById('ap-prix');
+  input.style.transition = 'box-shadow .2s';
+  input.style.boxShadow = '0 0 0 3px rgba(10,132,255,.45)';
+  input.focus();
+  setTimeout(() => { input.style.boxShadow = ''; }, 2200);
+}
+
+async function saveNewProduct() {
+  const nom = document.getElementById('ap-nom').value.trim();
+  const prixAUD = parseFloat(document.getElementById('ap-prix').value) || 0;
+  const venteRaw = document.getElementById('ap-vente').value;
+  const prixVente = venteRaw ? (parseInt(venteRaw) || 0) : _apVenteSuggere;
+  if (!nom || !prixAUD) { alert('Nom du produit et prix AUD sont requis.'); return; }
+  if (!prixVente) { alert('Prix de vente requis — cliquez sur le prix suggéré ou saisissez-en un.'); return; }
+  const marque = document.getElementById('ap-marque').value;
+  const cat = document.getElementById('ap-cat').value;
+  const spec = document.getElementById('ap-spec').value.trim();
+  const fournisseur = document.getElementById('ap-fournisseur').value;
+  const id = (marque + '-' + nom)
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 60);
+  const btn = document.getElementById('ap-save-btn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Sauvegarde…';
+  try {
+    const imageUrl = document.getElementById('ap-image-url').value.trim();
+    const videoUrl = document.getElementById('ap-video-url').value.trim();
+    const prixIstore = parseFloat(document.getElementById('ap-prix-istore').value) || null;
+    const description = document.getElementById('ap-description').value.trim();
+    const disponible = document.getElementById('ap-disponible').checked;
+    const productData = {
+      id, marque, cat, nom, spec, fournisseur, prixAUD,
+      gst: prixAUD * 0.10, prixVente,
+      disponible: disponible,
+      visible: disponible,
+      updatedAt: window._fbServerTimestamp(),
+    };
+    if (imageUrl) productData.imageUrl = imageUrl;
+    if (videoUrl) productData.videoUrl = videoUrl;
+    if (prixIstore) productData.prixIstore = prixIstore;
+    if (description) productData.description = description;
+    await window._fbSetDoc(window._fbDoc(window._fbDb, 'technc_catalogue', id), productData);
+    ['ap-nom','ap-spec','ap-prix','ap-vente','ap-image-url','ap-video-url','ap-prix-istore','ap-description'].forEach(i => { const e = document.getElementById(i); if(e) e.value = ''; });
+    document.getElementById('ap-disponible').checked = true;
+    document.getElementById('ap-price-results').style.display = 'none';
+    updateAddCalcs();
+    closeAddPanel();
+  } catch(e) {
+    alert('Erreur Firestore : ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Sauvegarder le produit';
+  }
+}
+
+// ─── SYNC PRIX ───────────────────────────────────────────────────
+// ← Remplace par l'URL affichée dans `firebase deploy --only functions`
+const SYNC_MANUEL_URL = 'https://syncatalogueuprixmanuel-gb0o4zdzb-uc.a.run.app';
+
+async function syncMaintenant() {
+  const btn = document.getElementById('sync-btn');
+  const banner = document.getElementById('sync-banner');
+  btn.disabled = true;
+  btn.textContent = '⟳ Sync…';
+  banner.style.display = 'block';
+  banner.style.color = 'var(--mid)';
+  banner.innerHTML = '<span style="opacity:.7;">⟳ Synchronisation en cours — peut prendre 1–2 min…</span>';
+  try {
+    const res = await fetch(SYNC_MANUEL_URL, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+    const updParts = [];
+    if (data.updated > 0) updParts.push('<span style="color:var(--green);">✅ ' + data.updated + ' mis à jour</span>');
+    if (data.notFound > 0) updParts.push('<span style="color:var(--red);">❌ ' + data.notFound + ' introuvable' + (data.notFound > 1 ? 's' : '') + '</span>');
+    if (data.unchanged > 0) updParts.push('<span style="color:var(--dim);">— ' + data.unchanged + ' inchangé' + (data.unchanged > 1 ? 's' : '') + '</span>');
+    banner.style.color = '';
+    banner.innerHTML = '<strong style="color:var(--text);">Sync terminé</strong> · '
+      + data.date + '<br>'
+      + (updParts.length > 0 ? updParts.join(' · ') : '<span style="color:var(--dim);">Aucun changement</span>')
+      + (data.errorCount > 0 ? ' · <span style="color:var(--orange);">⚠ ' + data.errorCount + ' erreur(s)</span>' : '')
+      + ' <button onclick="document.getElementById(\'sync-banner\').style.display=\'none\'" style="float:right;background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;">✕</button>';
+  } catch (e) {
+    banner.style.color = 'var(--red)';
+    banner.innerHTML = '⚠ Erreur sync : ' + e.message
+      + ' — Vérifie que SYNC_MANUEL_URL est correcte et que la fonction est déployée.';
+  }
+  btn.disabled = false;
+  btn.textContent = '⟳ Sync prix';
+}
+
+document.addEventListener('keydown', e => { if(e.key === 'Escape') { closeOrderPanel(); closeAddPanel(); } });
+
+// Auto-load at startup
+window.addEventListener('load', () => {
+  fetchRate();
+  fetchCustomsTaxes();
+  loadOrders();
+  loadCatalogue();
+  loadCreneaux();
+  initScrollSpy();
+});
+</script>
+
+<!-- ADD PRODUCT PANEL -->
+<div class="add-panel-overlay" id="add-panel-overlay" onclick="closeAddPanel()"></div>
+<aside class="add-panel" id="add-panel">
+  <div class="panel-topbar">
+    <div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:2px;">Catalogue</div>
+      <div class="panel-code" style="color:var(--text);font-size:15px;">Nouveau produit</div>
+    </div>
+    <button class="panel-close" onclick="closeAddPanel()">✕</button>
+  </div>
+  <div class="panel-body">
+
+    <div class="psec">
+      <div class="psec-title">Identification</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="aform-group">
+          <label class="aform-label">Marque</label>
+          <select id="ap-marque" class="aform-select">
+            <option value="Apple">Apple</option>
+            <option value="Samsung">Samsung</option>
+            <option value="Google">Google</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="aform-group">
+          <label class="aform-label">Catégorie</label>
+          <select id="ap-cat" class="aform-select">
+            <option value="iPhone">iPhone</option>
+            <option value="iPad">iPad</option>
+            <option value="Mac">Mac</option>
+            <option value="Watch">Watch</option>
+            <option value="Audio">Audio</option>
+            <option value="Accessoire">Accessoire</option>
+            <option value="Android">Android</option>
+          </select>
+        </div>
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">Nom du produit *</label>
+        <input id="ap-nom" class="aform-input" type="text" placeholder="ex : iPhone 18 Pro">
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">Spec</label>
+        <input id="ap-spec" class="aform-input" type="text" placeholder="ex : 256 Go · A20 Pro · Titane">
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">Fournisseur préféré</label>
+        <select id="ap-fournisseur" class="aform-select">
+          <option value="Apple Store AU">Apple Store AU</option>
+          <option value="JB Hi-Fi">JB Hi-Fi</option>
+          <option value="Harvey Norman">Harvey Norman</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Prix & Recherche</div>
+      <div class="aform-group">
+        <label class="aform-label">Prix AUD *</label>
+        <div style="display:flex;gap:8px;">
+          <input id="ap-prix" class="aform-input" type="number" min="0" placeholder="ex : 1999" oninput="updateAddCalcs()" style="flex:1;">
+          <button id="ap-search-btn" class="btn btn-ghost" style="white-space:nowrap;flex-shrink:0;font-size:12px;padding:0 14px;" onclick="searchPrix()">🔍 Rechercher</button>
+        </div>
+      </div>
+      <div id="ap-price-results" style="display:none;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Calculé automatiquement</div>
+      <div class="prow">
+        <span class="plabel">GST récupéré</span>
+        <span id="ap-calc-gst" class="pval" style="color:var(--green);">—</span>
+      </div>
+      <div class="prow">
+        <span class="plabel">Coût réel NC</span>
+        <span id="ap-calc-cout" class="pval" style="color:var(--orange);">—</span>
+      </div>
+      <div class="prow" style="cursor:pointer;" onclick="applyVenteSuggere()" title="Cliquer pour utiliser ce prix">
+        <span class="plabel">Prix vente suggéré <span style="color:var(--accent);font-size:10px;">→ appliquer</span></span>
+        <span id="ap-calc-vente" class="pval" style="color:var(--accent);">—</span>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Prix de vente TechNC (XPF)</div>
+      <div class="aform-group">
+        <input id="ap-vente" class="aform-input" type="number" min="0" placeholder="ex : 191000 — ou cliquer sur le suggéré ci-dessus">
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Médias & Contenu</div>
+      <div class="aform-group">
+        <label class="aform-label">URL image produit</label>
+        <input id="ap-image-url" class="aform-input" type="url" placeholder="https://…/iphone-17-pro.png">
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">URL vidéo (YouTube ou .mp4)</label>
+        <input id="ap-video-url" class="aform-input" type="url" placeholder="https://youtube.com/watch?v=…">
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">Prix iStore NC (XPF) — prix barré</label>
+        <input id="ap-prix-istore" class="aform-input" type="number" min="0" placeholder="ex : 249000">
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">Description produit</label>
+        <textarea id="ap-description" class="aform-input" rows="3" placeholder="Points forts, cas d'usage, comparatif…" style="resize:vertical;min-height:80px;"></textarea>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Disponibilité</div>
+      <label class="ap-check-row" for="ap-disponible">
+        <input type="checkbox" id="ap-disponible" checked>
+        <span class="ap-check-label">Produit disponible chez le fournisseur</span>
+      </label>
+      <div style="font-size:11px;color:var(--dim);padding-left:26px;">Si décoché → badge rouge dans le tableau et produit masqué sur la vitrine.</div>
+    </div>
+
+    <div>
+      <button id="ap-save-btn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveNewProduct()">Sauvegarder le produit</button>
+    </div>
+
+  </div>
+</aside>
+
+<!-- ORDER DETAIL PANEL -->
+<div class="panel-overlay" id="panel-overlay" onclick="closeOrderPanel()"></div>
+<aside class="order-panel" id="order-panel">
+  <div class="panel-topbar">
+    <div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:2px;">Détails commande</div>
+      <div class="panel-code" id="panel-code">—</div>
+    </div>
+    <button class="panel-close" onclick="closeOrderPanel()">✕</button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</aside>
+</body>
+</html>
