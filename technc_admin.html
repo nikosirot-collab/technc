@@ -1026,16 +1026,17 @@ const ODS_BASE = 'https://nouvelle-caledonie.opendatasoft.com/api/explore/v2.1/c
 
 async function fetchTauxDouane(td) {
   try {
-    const url = `${ODS_BASE}/referentiel-douanier-tarif-douanier-compilation/records?where=td%3D%22${encodeURIComponent(td)}%22&limit=1`;
+    const url = `${ODS_BASE}/referentiel-douanier-tarif-douanier-compilation/records?where=codification_statistique%3D%22${encodeURIComponent(td)}%22&limit=1&select=codification_statistique%2Cdesignation_des_marchandises%2Cdd%2Ctgc`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.results && data.results.length > 0) {
       const r = data.results[0];
-      // Champs typiques : dd (droit de douane %), tgc (taux TGC %)
+      // dd et tgc arrivent sous forme "5%" — on strip le % avant parseFloat
+      const parsePct = v => v ? parseFloat(String(v).replace('%', '')) : 0;
       return {
-        dd: parseFloat(r.dd || r.tdd || 0),
-        tgc: parseFloat(r.tgc || r.ttgc || 0),
-        libelle: r.lib || r.libelle || '',
+        dd:  parsePct(r.dd),
+        tgc: parsePct(r.tgc),
+        libelle: r.designation_des_marchandises || '',
         source: 'API douane.gouv.nc (live)',
       };
     }
