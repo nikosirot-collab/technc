@@ -359,16 +359,16 @@ body{
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const cfg = {
-  apiKey:"AIzaSyDAKyz72MX5Ebe2YcPEabVdWQSggp7a5JA",
-  authDomain:"technc-ec348.firebaseapp.com",
-  projectId:"technc-ec348",
-  storageBucket:"technc-ec348.firebasestorage.app",
-  messagingSenderId:"472212803063",
-  appId:"1:472212803063:web:612f2ff80483821a1372f2"
+const firebaseConfig = {
+  apiKey: "AIzaSyDAKyz72MX5Ebe2YcPEabVdWQSggp7a5JA",
+  authDomain: "technc-ec348.firebaseapp.com",
+  projectId: "technc-ec348",
+  storageBucket: "technc-ec348.firebasestorage.app",
+  messagingSenderId: "472212803063",
+  appId: "1:472212803063:web:612f2ff80483821a1372f2"
 };
-const app = initializeApp(cfg);
-const db  = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 window._fbDb         = db;
 window._fbCollection = collection;
 window._fbQuery      = query;
