@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Catalogue produits ─────────────────────────────────────────
+    // Lecture publique (vitrine). Écriture réservée à l'admin connecté
+    // ou aux Cloud Functions (Admin SDK, qui bypass toujours les règles).
+    match /technc_catalogue/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Créneaux de commande ───────────────────────────────────────
+    // Lecture publique. Écriture réservée à l'admin connecté.
+    match /technc_creneaux/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Commandes clients ──────────────────────────────────────────
+    match /technc_orders/{orderId} {
+
+      // Lecture : autorisée — le code TNC-XXXX sert de jeton d'accès opaque.
+      allow read: if true;
+
+      // Création : autorisée si les champs obligatoires sont présents
+      // et que le code respecte le format TNC-[lettres/chiffres].
+      allow create: if request.resource.data.keys().hasAll(['code', 'client', 'produit', 'prix'])
+                    && request.resource.data.code is string
+                    && request.resource.data.code.matches('TNC-[A-Z0-9]+');
+
+      // Mise à jour :
+      // - Admin connecté → accès complet
+      // - Client non connecté → uniquement si le code ne change pas
+      //   (signalement de paiement depuis technc_suivi.html)
+      allow update: if request.auth != null
+                    || resource.data.code == request.resource.data.code;
+
+      // Suppression : réservée à l'admin.
+      allow delete: if request.auth != null;
+    }
+  }
+}

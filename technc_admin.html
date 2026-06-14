@@ -173,6 +173,25 @@ tr:hover td { background:rgba(255,255,255,.02); }
 
 @media(max-width:768px){ body{padding-left:0} .sidebar{display:none} .kpi-row{grid-template-columns:1fr 1fr} }
 
+/* LOGIN SCREEN */
+.login-overlay{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;}
+.login-card{width:380px;max-width:calc(100vw - 48px);background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:44px 36px;display:flex;flex-direction:column;align-items:center;gap:28px;}
+.login-logo-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.login-logo-title{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+.login-logo-title em{font-style:normal;color:var(--accent);}
+.login-subtitle{font-size:12px;color:var(--dim);letter-spacing:.01em;}
+.login-form{width:100%;display:flex;flex-direction:column;gap:12px;}
+.login-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:13px 14px;font-size:15px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s;}
+.login-input:focus{border-color:var(--accent);}
+.login-input::placeholder{color:var(--dim);}
+.login-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .15s;margin-top:4px;}
+.login-btn:hover:not(:disabled){opacity:.88;}
+.login-btn:disabled{opacity:.5;cursor:default;}
+.login-error{width:100%;background:var(--red-dim);color:var(--red);border-radius:8px;padding:10px 14px;font-size:13px;text-align:center;display:none;}
+.login-error.visible{display:block;}
+.btn-logout{display:flex;align-items:center;gap:7px;background:none;border:none;color:var(--dim);font-size:12px;font-family:inherit;cursor:pointer;padding:8px 0 0;transition:color .15s;width:100%;text-align:left;}
+.btn-logout:hover{color:var(--red);}
+
 /* ORDER DETAIL PANEL */
 .panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;opacity:0;pointer-events:none;transition:opacity .25s;}
 .panel-overlay.open{opacity:1;pointer-events:auto;}
@@ -223,6 +242,23 @@ tr:hover td { background:rgba(255,255,255,.02); }
 </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <div class="login-logo-title">Tech<em>NC</em> <span style="color:var(--dim);font-weight:400;">Admin</span></div>
+      <div class="login-subtitle">Accès réservé — connexion requise</div>
+    </div>
+    <form class="login-form" onsubmit="handleLogin(event)" novalidate>
+      <input class="login-input" type="email" id="login-email" placeholder="Adresse email" autocomplete="email" required>
+      <input class="login-input" type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password" required>
+      <div class="login-error" id="login-error"></div>
+      <button class="login-btn" type="submit" id="login-btn">Se connecter</button>
+    </form>
+  </div>
+</div>
+
 <div class="layout">
 
 <!-- SIDEBAR -->
@@ -252,6 +288,11 @@ tr:hover td { background:rgba(255,255,255,.02); }
   <div class="sidebar-bottom">
     <strong>Créneau actif</strong>
     Voyage Sept. 2026<br>Clôture 20 août
+    <div id="sidebar-user-email" style="margin-top:10px;font-size:10px;color:var(--dim);word-break:break-all;"></div>
+    <button class="btn-logout" onclick="handleLogout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Déconnexion
+    </button>
   </div>
 </aside>
 
@@ -545,6 +586,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, getDocs, deleteDoc, doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 const firebaseConfig = {
   apiKey: "AIzaSyDAKyz72MX5Ebe2YcPEabVdWQSggp7a5JA",
   authDomain: "technc-ec348.firebaseapp.com",
@@ -555,6 +597,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 window._fbDb = db;
 window._fbCollection = collection;
 window._fbGetDocs = getDocs;
@@ -564,6 +607,23 @@ window._fbOnSnapshot = onSnapshot;
 window._fbSetDoc = setDoc;
 window._fbUpdateDoc = updateDoc;
 window._fbServerTimestamp = serverTimestamp;
+window._fbSignIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
+window._fbSignOut = () => signOut(auth);
+
+onAuthStateChanged(auth, (user) => {
+  const overlay = document.getElementById('login-overlay');
+  if (user) {
+    overlay.style.display = 'none';
+    const emailEl = document.getElementById('sidebar-user-email');
+    if (emailEl) emailEl.textContent = user.email;
+    if (!window._appInitialized) {
+      window._appInitialized = true;
+      if (typeof window._initApp === 'function') window._initApp();
+    }
+  } else {
+    overlay.style.display = 'flex';
+  }
+});
 </script>
 
 <script>
@@ -1651,15 +1711,50 @@ async function syncMaintenant() {
 
 document.addEventListener('keydown', e => { if(e.key === 'Escape') { closeOrderPanel(); closeAddPanel(); } });
 
-// Auto-load at startup
-window.addEventListener('load', () => {
+// ─── AUTH HANDLERS ────────────────────────────────────────────
+async function handleLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const errEl    = document.getElementById('login-error');
+  errEl.classList.remove('visible');
+  btn.disabled = true; btn.textContent = 'Connexion…';
+  try {
+    await window._fbSignIn(email, password);
+  } catch (err) {
+    const msgs = {
+      'auth/invalid-credential':     'Email ou mot de passe incorrect.',
+      'auth/user-not-found':         'Aucun compte pour cet email.',
+      'auth/wrong-password':         'Mot de passe incorrect.',
+      'auth/too-many-requests':      'Trop de tentatives. Réessaie dans quelques minutes.',
+      'auth/invalid-email':          'Adresse email invalide.',
+      'auth/network-request-failed': 'Erreur réseau — vérifie ta connexion.',
+    };
+    errEl.textContent = msgs[err.code] || ('Erreur : ' + err.message);
+    errEl.classList.add('visible');
+    btn.disabled = false; btn.textContent = 'Se connecter';
+  }
+}
+
+function handleLogout() {
+  if (!confirm('Se déconnecter ?')) return;
+  window._appInitialized = false;
+  if (typeof _unsubscribeCatalogue === 'function') { _unsubscribeCatalogue(); _unsubscribeCatalogue = null; }
+  if (typeof _unsubscribeCreneaux  === 'function') { _unsubscribeCreneaux();  _unsubscribeCreneaux  = null; }
+  if (typeof _unsubscribeOrders    === 'function') { _unsubscribeOrders();    _unsubscribeOrders    = null; }
+  window._fbSignOut();
+}
+
+// ─── APP INIT (appelé par onAuthStateChanged après connexion) ─
+window._initApp = function() {
   fetchRate();
   fetchCustomsTaxes();
   loadOrders();
   loadCatalogue();
   loadCreneaux();
   initScrollSpy();
-});
+};
 </script>
 
 <!-- ADD PRODUCT PANEL -->
