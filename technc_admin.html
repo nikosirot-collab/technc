@@ -1078,32 +1078,15 @@ async function fetchRate(){
     return;
   }
 
-  // Priorité 2 : exchangerate.host (marché)
+  // Priorité 2 : ExchangeRate-API (gratuite, CORS ok)
   try {
-    const res = await fetch('https://api.exchangerate.host/convert?from=AUD&to=XPF&amount=1');
+    const res = await fetch('https://open.er-api.com/v6/latest/AUD');
     const data = await res.json();
-    if (data && data.result) {
-      const rate = parseFloat(data.result.toFixed(4));
+    if (data && data.rates && data.rates.XPF) {
+      const rate = parseFloat(data.rates.XPF.toFixed(4));
       document.getElementById('rate-aud').value = rate;
       const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-      status.textContent = `✓ Taux marché à ${time} — source: exchangerate.host`;
-      status.style.color = 'var(--accent)'; // bleu = marché, pas officiel
-      btn.textContent = '⟳ Live';
-      btn.style.opacity = '1';
-      recalcAll();
-      return;
-    }
-  } catch(e) {}
-
-  // Priorité 3 : frankfurter.app
-  try {
-    const res2 = await fetch('https://api.frankfurter.app/latest?from=AUD&to=XPF');
-    const data2 = await res2.json();
-    if (data2 && data2.rates && data2.rates.XPF) {
-      const rate = parseFloat(data2.rates.XPF.toFixed(4));
-      document.getElementById('rate-aud').value = rate;
-      const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-      status.textContent = `✓ Taux marché à ${time} — source: frankfurter.app`;
+      status.textContent = `✓ Taux marché à ${time} — source: open.er-api.com`;
       status.style.color = 'var(--accent)';
       btn.textContent = '⟳ Live';
       btn.style.opacity = '1';
@@ -1112,7 +1095,8 @@ async function fetchRate(){
     }
   } catch(e) {}
 
-  status.innerHTML = '⚠ API indisponible — taux manuel : 73 XPF/AUD<br><span style="color:var(--dim);font-size:10px;">Modifie manuellement si nécessaire</span>';
+  // Priorité 3 : fallback manuel
+  status.innerHTML = '⚠ APIs indisponibles — taux par défaut : 73 XPF/AUD<br><span style="color:var(--dim);font-size:10px;">Modifie manuellement si nécessaire</span>';
   status.style.color = 'var(--orange)';
   btn.textContent = '⟳ Live';
   btn.style.opacity = '1';

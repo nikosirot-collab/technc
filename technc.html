@@ -397,14 +397,9 @@ async function fetchLiveRate(){
     }
   } catch {}
   try {
-    const r = await _fetchWithTimeout('https://api.exchangerate.host/convert?from=AUD&to=XPF&amount=1');
+    const r = await _fetchWithTimeout('https://open.er-api.com/v6/latest/AUD');
     const d = await r.json();
-    if(d && d.result){ liveRate = d.result; rateSource = 'exchangerate.host (marché)'; updateRateDisplay(); return; }
-  } catch {}
-  try {
-    const r = await _fetchWithTimeout('https://api.frankfurter.app/latest?from=AUD&to=XPF');
-    const d = await r.json();
-    if(d && d.rates && d.rates.XPF){ liveRate = d.rates.XPF; rateSource = 'frankfurter.app (marché)'; updateRateDisplay(); return; }
+    if(d && d.rates && d.rates.XPF){ liveRate = d.rates.XPF; rateSource = 'open.er-api.com (marché)'; updateRateDisplay(); return; }
   } catch {}
   rateSource = '⚠ APIs indisponibles — taux par défaut (73)';
   updateRateDisplay();
