@@ -381,27 +381,18 @@ window._fbWhere = where;
 let liveRate = 73;
 let rateSource = 'taux par défaut';
 
-function _fetchWithTimeout(url, ms = 4000) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
-}
-
 async function fetchLiveRate(){
   try {
-    const r = await _fetchWithTimeout('https://nouvelle-caledonie.opendatasoft.com/api/explore/v2.1/catalog/datasets/referentiel-douanier-taux-de-change/records?where=devise%3D%22AUD%22&limit=1&order_by=date_fin_validite%20desc');
-    const d = await r.json();
-    if(d.results && d.results.length > 0){
-      const t = parseFloat(d.results[0].taux_xpf || d.results[0].taux || 0);
-      if(t > 0){ liveRate = t; rateSource = 'Taux officiel douane NC'; updateRateDisplay(); return; }
+    const response = await fetch('https://open.er-api.com/v6/latest/AUD');
+    const data = await response.json();
+    if(data && data.rates && data.rates.XPF){
+      liveRate = data.rates.XPF;
+      rateSource = 'open.er-api.com';
+      updateRateDisplay();
+      return;
     }
   } catch {}
-  try {
-    const r = await _fetchWithTimeout('https://open.er-api.com/v6/latest/AUD');
-    const d = await r.json();
-    if(d && d.rates && d.rates.XPF){ liveRate = d.rates.XPF; rateSource = 'open.er-api.com (marché)'; updateRateDisplay(); return; }
-  } catch {}
-  rateSource = '⚠ APIs indisponibles — taux par défaut (73)';
+  rateSource = '⚠ API indisponible — taux par défaut (73)';
   updateRateDisplay();
 }
 

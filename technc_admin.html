@@ -1043,19 +1043,6 @@ async function fetchTauxDouane(td) {
   return null;
 }
 
-async function fetchTauxChangeDouane() {
-  try {
-    const url = `${ODS_BASE}/referentiel-douanier-taux-de-change/records?where=devise%3D%22AUD%22&limit=1&order_by=date_fin_validite%20desc`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.results && data.results.length > 0) {
-      const r = data.results[0];
-      const taux = parseFloat(r.taux_xpf || r.taux || 0);
-      if (taux > 0) return { taux, source: 'Taux officiel douane NC', date: r.date_fin_validite };
-    }
-  } catch(e) {}
-  return null;
-}
 
 // ─── TAUX AUD/XPF EN TEMPS RÉEL ────────────────────────────
 async function fetchRate(){
@@ -1065,39 +1052,21 @@ async function fetchRate(){
   btn.style.opacity = '0.6';
   status.style.color = 'var(--dim)';
   status.textContent = 'Récupération en cours…';
-
-  // Priorité 1 : taux officiel douane NC (dernier vendredi du mois précédent)
-  const tauxDouane = await fetchTauxChangeDouane();
-  if (tauxDouane && tauxDouane.taux > 0) {
-    document.getElementById('rate-aud').value = tauxDouane.taux.toFixed(4);
-    status.textContent = `✓ Taux officiel douane NC — valide jusqu'au ${tauxDouane.date || '?'} | ${tauxDouane.source}`;
-    status.style.color = 'var(--green)';
-    btn.textContent = '⟳ Live';
-    btn.style.opacity = '1';
-    recalcAll();
-    return;
-  }
-
-  // Priorité 2 : ExchangeRate-API (gratuite, CORS ok)
   try {
-    const res = await fetch('https://open.er-api.com/v6/latest/AUD');
-    const data = await res.json();
+    const response = await fetch('https://open.er-api.com/v6/latest/AUD');
+    const data = await response.json();
     if (data && data.rates && data.rates.XPF) {
       const rate = parseFloat(data.rates.XPF.toFixed(4));
       document.getElementById('rate-aud').value = rate;
       const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-      status.textContent = `✓ Taux marché à ${time} — source: open.er-api.com`;
-      status.style.color = 'var(--accent)';
-      btn.textContent = '⟳ Live';
-      btn.style.opacity = '1';
+      status.textContent = `✓ Taux à ${time} — source: open.er-api.com`;
+      status.style.color = 'var(--green)';
       recalcAll();
-      return;
     }
-  } catch(e) {}
-
-  // Priorité 3 : fallback manuel
-  status.innerHTML = '⚠ APIs indisponibles — taux par défaut : 73 XPF/AUD<br><span style="color:var(--dim);font-size:10px;">Modifie manuellement si nécessaire</span>';
-  status.style.color = 'var(--orange)';
+  } catch(e) {
+    status.innerHTML = '⚠ API indisponible — taux par défaut : 73 XPF/AUD<br><span style="color:var(--dim);font-size:10px;">Modifie manuellement si nécessaire</span>';
+    status.style.color = 'var(--orange)';
+  }
   btn.textContent = '⟳ Live';
   btn.style.opacity = '1';
 }
