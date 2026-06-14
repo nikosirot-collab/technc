@@ -283,6 +283,96 @@ async function sendSummaryEmail(apiKey, date, changes, errors) {
   }
 }
 
+// ── StaticICE scraper ─────────────────────────────────────────────
+
+const KNOWN_MERCHANTS = [
+  "JB Hi-Fi", "Harvey Norman", "Officeworks", "Apple Store",
+  "Amazon", "Bing Lee", "Kogan", "BIG W", "Myer", "Centre Com",
+  "Scorptec", "CPL Online", "PB Tech", "Mighty Ape",
+];
+
+// Structure HTML StaticICE :
+// <tr valign="top">
+//   <td><a alt="MERCHANT: Click to see..." href="/cgi-bin/redirect.cgi?...&newurl=ENCODED_URL">$1,999.00</a></td>
+//   <td>[SKU] Product Name<br><font>...<a>Merchant</a>...</font></td>
+// </tr>
+function parseStaticIce(html) {
+  const results = [];
+  const SKIP_KEYWORDS = /\b(case|cover|protector|screen|tempered|glass|cable|charger|adapter|skin|film|pouch|sleeve|bag|strap|band|shell|hardshell|dux|studio shell|mount|stand|hub|dock|folio|wallet|bumper|grip|ring|holder|hook|clip|bracket)\b/i;
+
+  const rowRe = /<tr valign="top">([\s\S]*?)<\/tr>/gi;
+  let rowM;
+
+  while ((rowM = rowRe.exec(html)) !== null && results.length < 10) {
+    const row = rowM[1];
+
+    // Price: text of first <a> that starts with $
+    const priceM = row.match(/<a[^>]*>\s*\$([\d,]+(?:\.\d{2})?)\s*<\/a>/);
+    if (!priceM) continue;
+    const prix = parseFloat(priceM[1].replace(/,/g, ""));
+    if (prix < 50 || prix > 15000) continue;
+
+    // Merchant: from alt="MERCHANT: Click to see…"
+    const altM = row.match(/alt="([^:]+):\s*Click to see/i);
+    const revendeur = altM ? altM[1].trim() : "Autre";
+
+    // Product name: text in second <td> before <br>, strip SKU brackets
+    const tds = row.split(/<td[^>]*>/);
+    const secondTd = tds[2] || "";
+    const nomRaw = secondTd.match(/^([^<]+)/);
+    const nom = nomRaw
+      ? nomRaw[1].replace(/\[[^\]]+\]/g, "").replace(/&amp;/g, "&").trim()
+      : "";
+
+    // Skip accessories
+    if (SKIP_KEYWORDS.test(nom)) continue;
+
+    // Real destination URL from newurl= param
+    const newurlM = row.match(/newurl=([^&">\s]+)/);
+    const url = newurlM ? decodeURIComponent(newurlM[1]) : "";
+
+    const isDup = results.some(
+      (r) => Math.abs(r.prix - prix) < 1 && r.revendeur === revendeur
+    );
+    if (!isDup) results.push({ nom, prix, revendeur, url });
+  }
+
+  return results.sort((a, b) => a.prix - b.prix).slice(0, 5);
+}
+
+async function fuzzyUpdateCatalogue(nomRecherche, bestResult) {
+  const normalize = (s) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ");
+  const tokens = (s) => normalize(s).split(/\s+/).filter((t) => t.length > 2);
+
+  const queryTokens = tokens(nomRecherche);
+  if (queryTokens.length === 0) return null;
+
+  const snapshot = await db.collection("technc_catalogue").get();
+  let bestDoc = null;
+  let bestScore = 0;
+
+  for (const doc of snapshot.docs) {
+    const docTokens = tokens(doc.data().nom || "");
+    const matches = queryTokens.filter((t) =>
+      docTokens.some((d) => d.includes(t) || t.includes(d))
+    );
+    const score = matches.length / queryTokens.length;
+    if (score > bestScore) { bestScore = score; bestDoc = doc; }
+  }
+
+  if (bestDoc && bestScore >= 0.5) {
+    await bestDoc.ref.update({
+      prixAUD: bestResult.prix,
+      gst: Math.round(bestResult.prix * 0.1 * 100) / 100,
+      fournisseur: bestResult.revendeur,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { docId: bestDoc.id, nom: bestDoc.data().nom, score: Math.round(bestScore * 100) };
+  }
+  return null;
+}
+
 // ── Cloud Functions exports ────────────────────────────────────────
 
 // Cron HTTP : appelé par cron-job.org chaque nuit à 16h UTC (= 3h NC)
@@ -315,6 +405,63 @@ exports.syncPrix = functions.https.onRequest(
       res.status(200).json({ ok: true, ...result });
     } catch (e) {
       console.error("syncCataloguePrix error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
+// HTTP : scrape StaticICE.com.au et met à jour Firestore si match
+exports.scrapeAUPrix = functions.https.onRequest(
+  { timeoutSeconds: 30, memory: "256MiB", cors: true },
+  async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "GET, POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      return res.status(204).send("");
+    }
+
+    const nom = (req.query.nom || "").trim();
+    if (!nom) return res.status(400).json({ error: "Paramètre 'nom' manquant" });
+
+    const q = encodeURIComponent(nom);
+    const url =
+      `https://www.staticice.com.au/cgi-bin/search.cgi` +
+      `?q=${q}&stype=1&etype=&ptype=&min=50&max=15000&cid=&sorder=p&ltype=1&rcnt=10`;
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,*/*;q=0.9",
+          "Accept-Language": "en-AU,en;q=0.9",
+          Referer: "https://www.staticice.com.au/",
+        },
+      });
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        return res.status(502).json({ error: `StaticICE HTTP ${response.status}` });
+      }
+
+      const html = await response.text();
+      const results = parseStaticIce(html);
+
+      let updated = null;
+      if (results.length > 0) {
+        updated = await fuzzyUpdateCatalogue(nom, results[0]);
+      }
+
+      res.status(200).json({ results, updated });
+    } catch (e) {
+      if (e.name === "AbortError") {
+        return res.status(504).json({ error: "Timeout — StaticICE n'a pas répondu" });
+      }
       res.status(500).json({ error: e.message });
     }
   }

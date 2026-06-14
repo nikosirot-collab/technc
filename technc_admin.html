@@ -1593,21 +1593,62 @@ function applyVenteSuggere() {
   if (_apVenteSuggere > 0) document.getElementById('ap-vente').value = _apVenteSuggere;
 }
 
-function searchPrix() {
+async function searchPrix() {
   const nom = document.getElementById('ap-nom').value.trim();
   if (!nom) { alert('Entrez d\'abord un nom de produit.'); return; }
-  const q = encodeURIComponent(nom);
-  window.open('https://www.jbhifi.com.au/search?query=' + q, '_blank');
-  window.open('https://www.apple.com/au/search/' + q, '_blank');
-  window.open('https://www.harveynorman.com.au/search?q=' + q, '_blank');
+  const btn = document.getElementById('ap-search-btn');
   const el = document.getElementById('ap-price-results');
+  btn.disabled = true;
+  btn.textContent = '⟳ Recherche…';
   el.style.display = 'flex';
-  el.innerHTML = '<div style="font-size:12px;color:var(--mid);padding:4px 0;">🔍 3 onglets ouverts — copie le prix trouvé ici :</div>';
-  const input = document.getElementById('ap-prix');
-  input.style.transition = 'box-shadow .2s';
-  input.style.boxShadow = '0 0 0 3px rgba(10,132,255,.45)';
-  input.focus();
-  setTimeout(() => { input.style.boxShadow = ''; }, 2200);
+  el.innerHTML = '<div style="font-size:12px;color:var(--mid);padding:4px 0;">🔍 Recherche sur StaticICE.com.au…</div>';
+  try {
+    const url = 'https://scrapeauprix-gboo4zdzbq-uc.a.run.app?nom=' + encodeURIComponent(nom);
+    const res = await fetch(url);
+    const data = await res.json();
+    const results = data.results || [];
+    if (results.length === 0) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--orange);padding:4px 0;">Aucun produit trouvé sur StaticICE — saisis le prix manuellement.</div>';
+    } else {
+      const FOURNISSEUR_MAP = {
+        'jb hi-fi': 'jbhifi', 'jbhi-fi': 'jbhifi', 'jb hifi': 'jbhifi',
+        'harvey norman': 'harveynorman', 'mwave': 'mwave', 'amazon': 'amazon',
+        'the good guys': 'tgg', 'scorptec': 'scorptec', 'pccasegear': 'pccasegear',
+        'centrecom': 'centrecom', 'umart': 'umart', 'pbtech': 'pbtech',
+        'bing lee': 'binglee', 'appliance central': 'appliancecentral'
+      };
+      const mapFournisseur = (r) => {
+        const key = r.revendeur.toLowerCase();
+        for (const [k, v] of Object.entries(FOURNISSEUR_MAP)) { if (key.includes(k)) return v; }
+        return 'autre';
+      };
+      el.innerHTML = results.map((r, i) => `
+        <div class="price-result-item" onclick="selectPrixResult(${r.prix}, '${mapFournisseur(r)}', '${(r.url||'').replace(/'/g,"\\'")}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.nom || nom}</div>
+            <div style="font-size:11px;color:var(--dim);">${r.revendeur}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--green);white-space:nowrap;">$${r.prix.toFixed(2)}&nbsp;AUD</div>
+        </div>`).join('');
+    }
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--red);padding:4px 0;">⚠ Erreur réseau — saisis le prix manuellement.</div>';
+  }
+  btn.disabled = false;
+  btn.textContent = '🔍 Rechercher';
+}
+
+function selectPrixResult(prix, fournisseur, url) {
+  document.getElementById('ap-prix').value = prix;
+  const sel = document.getElementById('ap-fournisseur');
+  if (sel && fournisseur) {
+    const opt = [...sel.options].find(o => o.value === fournisseur);
+    if (opt) sel.value = fournisseur;
+  }
+  updateAddCalcs();
+  document.getElementById('ap-prix').style.transition = 'box-shadow .2s';
+  document.getElementById('ap-prix').style.boxShadow = '0 0 0 3px rgba(10,132,255,.45)';
+  setTimeout(() => { document.getElementById('ap-prix').style.boxShadow = ''; }, 2200);
 }
 
 async function saveNewProduct() {
