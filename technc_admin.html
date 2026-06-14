@@ -268,6 +268,19 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .aform-select:focus{border-color:var(--accent);}
 .price-result-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:all .15s;}
 .price-result-item:hover{border-color:var(--accent);background:var(--accent-dim);}
+.ap-sum{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.ap-sum-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;font-size:13px;gap:8px;}
+.ap-sum-row:nth-child(even){background:rgba(255,255,255,.03);}
+.ap-sum-sub{color:var(--dim);font-size:12px;}
+.ap-sum-total{font-weight:600;background:rgba(255,255,255,.05)!important;}
+.ap-sum-sep{height:1px;background:var(--border);}
+.ap-sum-val{text-align:right;font-weight:500;}
+.ap-badge-green{background:rgba(48,209,88,.15);color:var(--green);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:5px;}
+.ap-badge-red{background:rgba(255,69,58,.12);color:#ff453a;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:5px;}
+.ap-badge-orange{background:rgba(255,159,10,.12);color:var(--orange);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:5px;}
+.ap-quick-links{display:flex;gap:8px;margin-top:6px;}
+.ap-quick-link{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--accent);text-decoration:none;padding:4px 9px;border:1px solid var(--accent);border-radius:5px;opacity:.8;transition:opacity .15s;}
+.ap-quick-link:hover{opacity:1;}
 </style>
 </head>
 <body>
@@ -1569,24 +1582,82 @@ function closeAddPanel() {
 function updateAddCalcs() {
   const prixAUD = parseFloat(document.getElementById('ap-prix').value) || 0;
   const rates = getRates();
+  const sumEl = document.getElementById('ap-summary');
+  const emptyEl = document.getElementById('ap-summary-empty');
   if (!prixAUD) {
-    document.getElementById('ap-calc-gst').textContent = '—';
-    document.getElementById('ap-calc-cout').textContent = '—';
-    document.getElementById('ap-calc-vente').textContent = '—';
+    sumEl.style.display = 'none';
+    emptyEl.style.display = 'block';
     _apVenteSuggere = 0;
+    document.getElementById('ap-istore-eco').style.display = 'none';
     return;
   }
   const gst = prixAUD * 0.10;
   const netAUD = prixAUD - gst;
-  const xpf = netAUD * rates.aud;
-  const douane = xpf * 0.05;
-  const assietteTGC = xpf + douane;
-  const tgc = assietteTGC * (rates.tgc / 100);
-  const coutReel = isPatente ? (xpf + douane) : (xpf + douane + tgc);
+  const xpfBrut = netAUD * rates.aud;
+  const douane = xpfBrut * (rates.douaneGlobal / 100);
+  const assietteTGC = xpfBrut + douane;
+  const tgcAmt = assietteTGC * (rates.tgc / 100);
+  const coutReel = isPatente ? (xpfBrut + douane) : (xpfBrut + douane + tgcAmt);
   _apVenteSuggere = Math.round(coutReel + 15000);
-  document.getElementById('ap-calc-gst').textContent = 'A$' + Math.round(gst) + ' récupéré (TRS aéroport)';
-  document.getElementById('ap-calc-cout').textContent = Math.round(coutReel).toLocaleString('fr-FR') + ' XPF';
-  document.getElementById('ap-calc-vente').textContent = _apVenteSuggere.toLocaleString('fr-FR') + ' XPF';
+  const marge = _apVenteSuggere - Math.round(coutReel);
+
+  const fmt = n => Math.round(n).toLocaleString('fr-FR');
+
+  document.getElementById('aps-prix-au').textContent = 'A$' + fmt(prixAUD);
+  document.getElementById('aps-gst').innerHTML = '−A$' + fmt(gst) + '<span class="ap-badge-green">✓ récup.</span>';
+  document.getElementById('aps-net').textContent = 'A$' + fmt(netAUD);
+  document.getElementById('aps-taux-label').textContent = '× Taux (' + rates.aud.toFixed(1) + ')';
+  document.getElementById('aps-xpf-brut').textContent = fmt(xpfBrut) + ' XPF';
+  document.getElementById('aps-douane-label').textContent = '+ Douane ' + rates.douaneGlobal + '%';
+  document.getElementById('aps-douane').innerHTML = '+' + fmt(douane) + ' XPF<span class="ap-badge-red">❌</span>';
+  const rowTGC = document.getElementById('aps-row-tgc');
+  if (isPatente) {
+    rowTGC.style.display = 'none';
+  } else {
+    rowTGC.style.display = '';
+    document.getElementById('aps-tgc-label').textContent = '+ TGC ' + rates.tgc + '%';
+    document.getElementById('aps-tgc').innerHTML = '+' + fmt(tgcAmt) + ' XPF<span class="ap-badge-orange">⚠️</span>';
+  }
+  document.getElementById('aps-cout').textContent = fmt(coutReel) + ' XPF';
+  document.getElementById('aps-vente').textContent = fmt(_apVenteSuggere) + ' XPF';
+  document.getElementById('aps-marge').textContent = '+' + fmt(marge) + ' XPF';
+
+  sumEl.style.display = 'flex';
+  emptyEl.style.display = 'none';
+  updateIStoreEconomie();
+}
+
+function updateIStoreEconomie() {
+  const ecoEl = document.getElementById('ap-istore-eco');
+  const ecoText = document.getElementById('ap-istore-eco-text');
+  const prixIstore = parseFloat(document.getElementById('ap-prix-istore').value) || 0;
+  const vente = _apVenteSuggere || parseFloat(document.getElementById('ap-vente').value) || 0;
+  if (prixIstore > 0 && vente > 0 && prixIstore > vente) {
+    const eco = prixIstore - vente;
+    const pct = Math.round((eco / prixIstore) * 100);
+    ecoText.textContent = `Économie client : ${Math.round(eco).toLocaleString('fr-FR')} XPF vs iStore NC (−${pct}%)`;
+    ecoEl.style.display = 'block';
+  } else {
+    ecoEl.style.display = 'none';
+  }
+}
+
+function onMarqueChange() {
+  const marque = document.getElementById('ap-marque').value;
+  const nom = document.getElementById('ap-nom').value.trim();
+  const q = encodeURIComponent(nom);
+  const linkApple = document.getElementById('ap-link-apple');
+  const linkJB = document.getElementById('ap-link-jbhifi');
+  const noteApple = document.getElementById('ap-search-note');
+  if (marque === 'Apple') {
+    linkApple.style.display = 'inline-flex';
+    linkApple.href = 'https://www.apple.com/au/shop/buy-' + (q ? q.toLowerCase() : '');
+    noteApple.style.display = 'block';
+  } else {
+    linkApple.style.display = 'none';
+    noteApple.style.display = 'none';
+  }
+  linkJB.href = 'https://www.jbhifi.com.au/search?query=' + q;
 }
 
 function applyVenteSuggere() {
@@ -1610,17 +1681,19 @@ async function searchPrix() {
     if (results.length === 0) {
       el.innerHTML = '<div style="font-size:12px;color:var(--orange);padding:4px 0;">Aucun produit trouvé sur StaticICE — saisis le prix manuellement.</div>';
     } else {
-      const FOURNISSEUR_MAP = {
-        'jb hi-fi': 'jbhifi', 'jbhi-fi': 'jbhifi', 'jb hifi': 'jbhifi',
-        'harvey norman': 'harveynorman', 'mwave': 'mwave', 'amazon': 'amazon',
-        'the good guys': 'tgg', 'scorptec': 'scorptec', 'pccasegear': 'pccasegear',
-        'centrecom': 'centrecom', 'umart': 'umart', 'pbtech': 'pbtech',
-        'bing lee': 'binglee', 'appliance central': 'appliancecentral'
-      };
       const mapFournisseur = (r) => {
         const key = r.revendeur.toLowerCase();
-        for (const [k, v] of Object.entries(FOURNISSEUR_MAP)) { if (key.includes(k)) return v; }
-        return 'autre';
+        if (key.includes('jb hi-fi') || key.includes('jbhifi') || key.includes('jb hifi')) return 'JB Hi-Fi';
+        if (key.includes('harvey norman')) return 'Harvey Norman';
+        if (key.includes('the good guys') || key.includes('good guys')) return 'The Good Guys';
+        if (key.includes('officeworks')) return 'Officeworks';
+        if (key.includes('mwave')) return 'Mwave';
+        if (key.includes('amazon')) return 'Amazon AU';
+        if (key.includes('scorptec')) return 'Scorptec';
+        if (key.includes('bing lee')) return 'Bing Lee';
+        if (key.includes('centrecom')) return 'Centrecom';
+        if (key.includes('umart')) return 'Umart';
+        return 'Autre';
       };
       el.innerHTML = results.map((r, i) => `
         <div class="price-result-item" onclick="selectPrixResult(${r.prix}, '${mapFournisseur(r)}', '${(r.url||'').replace(/'/g,"\\'")}')">
@@ -1801,10 +1874,11 @@ window._initApp = function() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="aform-group">
           <label class="aform-label">Marque</label>
-          <select id="ap-marque" class="aform-select">
+          <select id="ap-marque" class="aform-select" onchange="onMarqueChange()">
             <option value="Apple">Apple</option>
             <option value="Samsung">Samsung</option>
             <option value="Google">Google</option>
+            <option value="Sony">Sony</option>
             <option value="Autre">Autre</option>
           </select>
         </div>
@@ -1835,6 +1909,15 @@ window._initApp = function() {
           <option value="Apple Store AU">Apple Store AU</option>
           <option value="JB Hi-Fi">JB Hi-Fi</option>
           <option value="Harvey Norman">Harvey Norman</option>
+          <option value="The Good Guys">The Good Guys</option>
+          <option value="Officeworks">Officeworks</option>
+          <option value="Mwave">Mwave</option>
+          <option value="Amazon AU">Amazon AU</option>
+          <option value="Scorptec">Scorptec</option>
+          <option value="Bing Lee">Bing Lee</option>
+          <option value="Centrecom">Centrecom</option>
+          <option value="Umart">Umart</option>
+          <option value="Autre">Autre</option>
         </select>
       </div>
     </div>
@@ -1842,35 +1925,80 @@ window._initApp = function() {
     <div class="psec">
       <div class="psec-title">Prix & Recherche</div>
       <div class="aform-group">
-        <label class="aform-label">Prix AUD *</label>
+        <label class="aform-label">Prix AUD (A$) *</label>
         <div style="display:flex;gap:8px;">
           <input id="ap-prix" class="aform-input" type="number" min="0" placeholder="ex : 1999" oninput="updateAddCalcs()" style="flex:1;">
-          <button id="ap-search-btn" class="btn btn-ghost" style="white-space:nowrap;flex-shrink:0;font-size:12px;padding:0 14px;" onclick="searchPrix()">🔍 Rechercher</button>
+          <button id="ap-search-btn" class="btn btn-ghost" style="white-space:nowrap;flex-shrink:0;font-size:12px;padding:0 14px;" onclick="searchPrix()">🔍 StaticICE</button>
         </div>
+        <div id="ap-search-note" style="display:none;font-size:11px;color:var(--dim);margin-top:5px;">⚠ StaticICE ne liste pas les produits Apple — saisir le prix depuis <a href="https://www.apple.com/au/shop" target="_blank" style="color:var(--accent);text-decoration:none;">apple.com/au</a></div>
       </div>
-      <div id="ap-price-results" style="display:none;flex-direction:column;gap:6px;"></div>
+      <div class="ap-quick-links">
+        <a id="ap-link-apple" class="ap-quick-link" href="https://www.apple.com/au/shop" target="_blank" style="display:none;">→ Apple AU</a>
+        <a id="ap-link-jbhifi" class="ap-quick-link" href="https://www.jbhifi.com.au" target="_blank">→ JB Hi-Fi</a>
+      </div>
+      <div id="ap-price-results" style="display:none;flex-direction:column;gap:6px;margin-top:4px;"></div>
     </div>
 
     <div class="psec">
-      <div class="psec-title">Calculé automatiquement</div>
-      <div class="prow">
-        <span class="plabel">GST récupéré</span>
-        <span id="ap-calc-gst" class="pval" style="color:var(--green);">—</span>
+      <div class="psec-title">Résumé importation</div>
+      <div id="ap-summary-empty" style="font-size:12px;color:var(--dim);padding:10px 0;text-align:center;">— Saisir un prix AUD pour voir le calcul —</div>
+      <div id="ap-summary" class="ap-sum" style="display:none;">
+        <div class="ap-sum-row">
+          <span>Prix AU</span>
+          <span id="aps-prix-au" class="ap-sum-val">—</span>
+        </div>
+        <div class="ap-sum-row ap-sum-sub">
+          <span>− GST 10%</span>
+          <span id="aps-gst" class="ap-sum-val">—</span>
+        </div>
+        <div class="ap-sum-row ap-sum-total">
+          <span>= Net AU</span>
+          <span id="aps-net" class="ap-sum-val">—</span>
+        </div>
+        <div class="ap-sum-sep"></div>
+        <div class="ap-sum-row ap-sum-sub">
+          <span id="aps-taux-label">× Taux (73)</span>
+          <span id="aps-xpf-brut" class="ap-sum-val">—</span>
+        </div>
+        <div class="ap-sum-row ap-sum-sub">
+          <span id="aps-douane-label">+ Douane 5%</span>
+          <span id="aps-douane" class="ap-sum-val">—</span>
+        </div>
+        <div class="ap-sum-row ap-sum-sub" id="aps-row-tgc">
+          <span id="aps-tgc-label">+ TGC 22%</span>
+          <span id="aps-tgc" class="ap-sum-val">—</span>
+        </div>
+        <div class="ap-sum-row ap-sum-total">
+          <span>= Coût réel NC</span>
+          <span id="aps-cout" class="ap-sum-val" style="color:var(--orange);">—</span>
+        </div>
+        <div class="ap-sum-sep"></div>
+        <div class="ap-sum-row" style="cursor:pointer;" onclick="applyVenteSuggere()" title="Cliquer pour appliquer">
+          <span>Prix vente <span style="color:var(--accent);font-size:10px;">→ appliquer</span></span>
+          <span id="aps-vente" class="ap-sum-val" style="color:var(--accent);">—</span>
+        </div>
+        <div class="ap-sum-row">
+          <span>Marge nette</span>
+          <span id="aps-marge" class="ap-sum-val" style="color:var(--green);">—</span>
+        </div>
+        <div id="ap-istore-eco" style="display:none;margin:4px 12px 10px;padding:8px 10px;background:rgba(48,209,88,.1);border-radius:6px;border:1px solid rgba(48,209,88,.25);">
+          <div style="font-size:11px;color:var(--green);font-weight:600;" id="ap-istore-eco-text">—</div>
+        </div>
       </div>
-      <div class="prow">
-        <span class="plabel">Coût réel NC</span>
-        <span id="ap-calc-cout" class="pval" style="color:var(--orange);">—</span>
-      </div>
-      <div class="prow" style="cursor:pointer;" onclick="applyVenteSuggere()" title="Cliquer pour utiliser ce prix">
-        <span class="plabel">Prix vente suggéré <span style="color:var(--accent);font-size:10px;">→ appliquer</span></span>
-        <span id="ap-calc-vente" class="pval" style="color:var(--accent);">—</span>
+    </div>
+
+    <div class="psec">
+      <div class="psec-title">Prix iStore NC (XPF) — optionnel</div>
+      <div class="aform-group">
+        <input id="ap-prix-istore" class="aform-input" type="number" min="0" placeholder="ex : 249 000 — prix barré iStore NC" oninput="updateIStoreEconomie()">
+        <div style="font-size:11px;color:var(--dim);margin-top:5px;">Si renseigné → badge « prix barré » sur la vitrine et comparaison dans le résumé ci-dessus.</div>
       </div>
     </div>
 
     <div class="psec">
       <div class="psec-title">Prix de vente TechNC (XPF)</div>
       <div class="aform-group">
-        <input id="ap-vente" class="aform-input" type="number" min="0" placeholder="ex : 191000 — ou cliquer sur le suggéré ci-dessus">
+        <input id="ap-vente" class="aform-input" type="number" min="0" placeholder="ex : 191 000 — ou cliquer sur le suggéré ci-dessus">
       </div>
     </div>
 
@@ -1883,10 +2011,6 @@ window._initApp = function() {
       <div class="aform-group">
         <label class="aform-label">URL vidéo (YouTube ou .mp4)</label>
         <input id="ap-video-url" class="aform-input" type="url" placeholder="https://youtube.com/watch?v=…">
-      </div>
-      <div class="aform-group">
-        <label class="aform-label">Prix iStore NC (XPF) — prix barré</label>
-        <input id="ap-prix-istore" class="aform-input" type="number" min="0" placeholder="ex : 249000">
       </div>
       <div class="aform-group">
         <label class="aform-label">Description produit</label>
