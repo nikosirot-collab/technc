@@ -171,7 +171,36 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .tooltip { position:relative; }
 .tooltip:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:#1a1a1f; border:1px solid var(--border2); border-radius:6px; padding:4px 8px; font-size:11px; color:var(--text); white-space:nowrap; z-index:100; }
 
-@media(max-width:768px){ body{padding-left:0} .sidebar{display:none} .kpi-row{grid-template-columns:1fr 1fr} }
+/* BOTTOM MOBILE NAV */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:60px;background:var(--surface);border-top:1px solid var(--border);z-index:30;align-items:center;justify-content:space-around;padding:0 4px;padding-bottom:env(safe-area-inset-bottom);}
+.mob-nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 12px;border-radius:10px;border:none;background:transparent;color:var(--dim);font-family:inherit;transition:all .15s;flex:1;}
+.mob-nav-btn.active{color:var(--accent);background:var(--accent-dim);}
+.mob-nav-btn svg{width:20px;height:20px;flex-shrink:0;}
+.mob-nav-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.mob-logout-btn{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 12px;border-radius:10px;border:none;background:transparent;color:var(--dim);font-family:inherit;transition:color .15s;flex:1;}
+.mob-logout-btn:hover{color:var(--red);}
+
+@media(max-width:768px){
+  body{padding-left:0;padding-bottom:68px;}
+  .sidebar{display:none;}
+  .mobile-nav{display:flex;}
+  .kpi-row{grid-template-columns:1fr 1fr;}
+  .content{padding:16px 14px;}
+  .topbar{padding:0 14px;height:48px;}
+  .topbar-badge{display:none;}
+  .btn-label{display:none;}
+  .btn{padding:6px 10px;}
+  .col-secondary{display:none;}
+  .rates-bar{gap:12px;padding:12px 14px;}
+  .section-header{flex-direction:column;align-items:flex-start;gap:10px;}
+  .filter-row{flex-wrap:wrap;}
+  .cr-grid-4{grid-template-columns:1fr 1fr!important;}
+  .cr-grid-2{grid-template-columns:1fr!important;}
+  .sim-grid{grid-template-columns:1fr!important;}
+  .voyage-stats{grid-template-columns:1fr 1fr;}
+  .order-card{flex-direction:column;gap:10px;}
+  .order-mid{flex-wrap:wrap;}
+}
 
 /* LOGIN SCREEN */
 .login-overlay{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;}
@@ -302,9 +331,9 @@ tr:hover td { background:rgba(255,255,255,.02); }
     <div class="topbar-title" id="page-title">Catalogue & Marges</div>
     <div class="topbar-right">
       <span class="topbar-badge">● Créneau ouvert</span>
-      <button class="btn btn-ghost btn-sm" id="seed-btn" onclick="seedCatalogue()">⚡ Seed DB</button>
-      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">↓ Export CSV</button>
-      <button class="btn btn-primary btn-sm" onclick="recalcAll()">⟳ Recalculer tout</button>
+      <button class="btn btn-ghost btn-sm" id="seed-btn" onclick="seedCatalogue()">⚡ <span class="btn-label">Seed DB</span></button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">↓ <span class="btn-label">Export CSV</span></button>
+      <button class="btn btn-primary btn-sm" onclick="recalcAll()">⟳ <span class="btn-label">Recalculer</span></button>
     </div>
   </div>
 
@@ -417,17 +446,17 @@ tr:hover td { background:rgba(255,255,255,.02); }
               <tr>
                 <th>Produit</th>
                 <th class="tooltip" data-tip="Prix brut Apple AU ou JB Hi-Fi">Prix AU (AUD)</th>
-                <th class="tooltip" data-tip="Remboursement GST 10% à l'aéroport">GST récup.</th>
-                <th class="tooltip" data-tip="Prix net après remboursement GST">Net AU</th>
-                <th class="tooltip" data-tip="Net AU × taux AUD/XPF">Coût AUD→XPF</th>
-                <th class="tooltip" data-tip="Droits de douane NC non récupérables">Douane NC</th>
-                <th class="tooltip" data-tip="TGC neutre pour entreprise patentée">TGC</th>
+                <th class="tooltip col-secondary" data-tip="Remboursement GST 10% à l'aéroport">GST récup.</th>
+                <th class="tooltip col-secondary" data-tip="Prix net après remboursement GST">Net AU</th>
+                <th class="tooltip col-secondary" data-tip="Net AU × taux AUD/XPF">Coût AUD→XPF</th>
+                <th class="tooltip col-secondary" data-tip="Droits de douane NC non récupérables">Douane NC</th>
+                <th class="tooltip col-secondary" data-tip="TGC neutre pour entreprise patentée">TGC</th>
                 <th style="font-weight:700;color:var(--orange)">Coût réel</th>
                 <th>Prix vente TechNC</th>
-                <th class="tooltip" data-tip="Fret + Stripe déduits">Charges var.</th>
+                <th class="tooltip col-secondary" data-tip="Fret + Stripe déduits">Charges var.</th>
                 <th style="font-weight:700;color:var(--green)">Marge nette</th>
                 <th>% Marge</th>
-                <th>Priorité</th>
+                <th class="col-secondary">Priorité</th>
                 <th style="text-align:center;">Dispo</th>
               </tr>
             </thead>
@@ -483,7 +512,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
           <span class="voyage-title">✦ Nouveau créneau</span>
           <span style="font-size:11px;color:var(--dim)">Statut initial : Fermé — à ouvrir manuellement</span>
         </div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="cr-grid-4" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
           <div style="display:flex;flex-direction:column;gap:5px;">
             <label style="font-size:11px;color:var(--mid);font-weight:500;">Titre</label>
             <input id="cr-titre" placeholder="Voyage Septembre 2026" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
@@ -501,7 +530,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
             <input id="cr-cloture" type="date" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:16px;">
+        <div class="cr-grid-2" style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:16px;">
           <div style="display:flex;flex-direction:column;gap:5px;">
             <label style="font-size:11px;color:var(--mid);font-weight:500;">Budget estimé (A$)</label>
             <input id="cr-budget" type="number" placeholder="15000" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:100%;">
@@ -539,7 +568,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
             <label style="font-size:12px;color:var(--mid);font-weight:500">Nom du produit</label>
             <input id="sim-name" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" placeholder="ex: MacBook Pro M5 Pro 14&quot; 1TB" oninput="simulate()">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="sim-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="fg" style="display:flex;flex-direction:column;gap:6px">
               <label style="font-size:12px;color:var(--mid);font-weight:500">Prix AU (A$)</label>
               <input id="sim-aud" type="number" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" placeholder="2 499" oninput="simulate()">
@@ -549,7 +578,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
               <input id="sim-vente" type="number" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" placeholder="229 000" oninput="simulate()">
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="sim-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="fg" style="display:flex;flex-direction:column;gap:6px">
               <label style="font-size:12px;color:var(--mid);font-weight:500">Taux douane (%)</label>
               <input id="sim-douane" type="number" value="5" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none;" oninput="simulate()">
@@ -815,17 +844,17 @@ function buildTable(){
     tr.innerHTML = `
       <td><div class="td-product"><span class="td-cat">${p.cat}</span><span class="td-name">${p.name}${dispoHtml}</span><span class="td-spec">${p.spec}</span></div></td>
       <td><input class="editable" value="${p.prixAUD}" onchange="updateField('${p._docId}','prixAUD',this.value.replace(/[^0-9.]/g,''))" title="Modifier le prix AU"></td>
-      <td class="num num-pos td-gst">${fmtAUD(c.gst)}</td>
-      <td class="num td-net">${fmtAUD(c.netAUD)}</td>
-      <td class="num td-xpf">${fmt(c.xpf)}</td>
-      <td class="num num-neg td-douane">${fmt(c.douane)}</td>
-      <td class="num" style="color:var(--dim)" title="Neutre — récupéré"><td-tgc class="td-tgc">${fmt(c.tgc)}</td-tgc> <span style="font-size:9px;color:var(--dim)">récup.</span></td>
+      <td class="num num-pos td-gst col-secondary">${fmtAUD(c.gst)}</td>
+      <td class="num td-net col-secondary">${fmtAUD(c.netAUD)}</td>
+      <td class="num td-xpf col-secondary">${fmt(c.xpf)}</td>
+      <td class="num num-neg td-douane col-secondary">${fmt(c.douane)}</td>
+      <td class="num col-secondary" style="color:var(--dim)" title="Neutre — récupéré"><td-tgc class="td-tgc">${fmt(c.tgc)}</td-tgc> <span style="font-size:9px;color:var(--dim)">récup.</span></td>
       <td class="num" style="color:var(--orange);font-weight:600"><span class="td-cout">${fmt(c.coutReel)}</span></td>
       <td><input class="editable" value="${p.prixVente}" onchange="updateField('${p._docId}','prixVente',this.value.replace(/[^0-9]/g,''))" title="Modifier le prix de vente"></td>
-      <td class="num td-charges" style="color:var(--dim)">${fmt(c.charges)}</td>
+      <td class="num td-charges col-secondary" style="color:var(--dim)">${fmt(c.charges)}</td>
       <td class="num td-marge ${margeClass}" style="font-weight:600">${fmt(c.marge)}</td>
       <td class="td-taux"><span class="pct-badge ${tClass}">${fmtPct(c.tauxMarge)}</span></td>
-      <td class="td-priority">${priorityHtml}</td>
+      <td class="td-priority col-secondary">${priorityHtml}</td>
       <td style="text-align:center;"><label class="toggle-dispo" title="${p.disponible !== false ? 'Disponible' : 'Indisponible'}"><input type="checkbox" ${dispoChecked} onchange="toggleDisponible('${p._docId}',this.checked)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label></td>
     `;
     tbody.appendChild(tr);
@@ -939,6 +968,9 @@ function initScrollSpy() {
     navItems.forEach(n => n.classList.remove('active'));
     const active = document.querySelector(`.nav-item[data-section="${id}"]`);
     if(active) active.classList.add('active');
+    document.querySelectorAll('.mob-nav-btn[data-section]').forEach(b => b.classList.remove('active'));
+    const mobActive = document.querySelector(`.mob-nav-btn[data-section="${id}"]`);
+    if(mobActive) mobActive.classList.add('active');
     document.getElementById('page-title').textContent = SECTION_TITLES[id] || id;
   };
 
@@ -1836,6 +1868,30 @@ window._initApp = function() {
 
   </div>
 </aside>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mobile-nav" id="mobile-nav">
+  <button class="mob-nav-btn active" data-section="catalogue" onclick="scrollToSection('catalogue')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span class="mob-nav-label">Catalogue</span>
+  </button>
+  <button class="mob-nav-btn" data-section="commandes" onclick="scrollToSection('commandes')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+    <span class="mob-nav-label">Commandes</span>
+  </button>
+  <button class="mob-nav-btn" data-section="voyages" onclick="scrollToSection('voyages')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>
+    <span class="mob-nav-label">Voyages</span>
+  </button>
+  <button class="mob-nav-btn" data-section="simulator" onclick="scrollToSection('simulator')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3"/><path d="M9 15l8-8"/><path d="M17 3h4v4"/></svg>
+    <span class="mob-nav-label">Simul.</span>
+  </button>
+  <button class="mob-logout-btn" onclick="handleLogout()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:20px;height:20px;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    <span class="mob-nav-label">Logout</span>
+  </button>
+</nav>
 
 <!-- ORDER DETAIL PANEL -->
 <div class="panel-overlay" id="panel-overlay" onclick="closeOrderPanel()"></div>
