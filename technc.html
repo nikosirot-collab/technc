@@ -141,7 +141,16 @@
   footer{border-top:1px solid var(--light);padding:28px 24px;text-align:center;font-size:12px;color:var(--mid)}
   footer strong{color:var(--dark)}
 
-  @media(max-width:600px){.nav-links{display:none}.creneau{flex-direction:column;align-items:flex-start}.c-right{width:100%;justify-content:space-between}}
+  @media(max-width:600px){
+    .nav-links{display:none}
+    .creneau{flex-direction:column;align-items:flex-start;padding:12px 14px;gap:10px}
+    .c-right{width:100%;justify-content:space-between;gap:10px}
+    .cd-n{font-size:16px}
+    .cd-l{font-size:9px}
+  }
+  @media(max-width:360px){
+    .grid{grid-template-columns:1fr}
+  }
 
   /* ── ANIMATIONS ──────────────────────────────────── */
   nav{transition:background .3s,backdrop-filter .3s,box-shadow .3s}
@@ -190,9 +199,42 @@
   .btn-detail-back{width:100%;background:transparent;color:var(--mid);border:1.5px solid var(--light);border-radius:980px;padding:13px;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;font-family:inherit;}
   .btn-detail-back:hover{border-color:var(--accent);color:var(--accent);}
   @media(max-width:768px){
+    /* Detail overlay */
     .detail-inner{grid-template-columns:1fr;padding:60px 20px 40px;gap:28px;}
     .detail-media-col{position:relative;top:0;}
     .detail-media-main{aspect-ratio:4/3;}
+
+    /* Hero */
+    .hero{padding:44px 18px 32px}
+    .hero-sub{font-size:15px;margin-bottom:20px}
+    .badges{gap:6px;margin-bottom:24px}
+    .badge{font-size:11px;padding:5px 10px}
+
+    /* Créneau — countdown + bouton sur une ligne */
+    .creneau{padding:14px 16px;gap:8px}
+    .c-txt span{display:none}
+
+    /* Tabs — compacts, scroll horizontal */
+    .tabs-wrap{padding:0 16px 24px}
+    .tab{padding:5px 12px 7px;font-size:12px}
+
+    /* Grid — 2 colonnes */
+    .section{padding:0 12px 48px}
+    .grid{grid-template-columns:1fr 1fr;gap:10px}
+
+    /* Cartes compactes */
+    .card-img{height:130px}
+    .card-img img{width:100px;height:100px}
+    .card-img .detail-media-placeholder svg{width:52px;height:52px}
+    .card-body{padding:11px 11px 13px}
+    .c-name{font-size:14px;letter-spacing:-.2px;margin-bottom:2px}
+    .c-spec{font-size:11px;margin-bottom:8px}
+    .c-feats,.c-sep{display:none}
+    .c-new{font-size:18px;line-height:1}
+    .c-old{font-size:10px}
+    .c-save{font-size:10px;padding:2px 6px;margin:4px 0 8px}
+    .stk{font-size:10px;padding:2px 7px;top:8px;right:8px}
+    .btn-order{font-size:12px;padding:9px}
   }
 </style>
 </head>
