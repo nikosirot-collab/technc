@@ -220,6 +220,8 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .login-error.visible{display:block;}
 .btn-logout{display:flex;align-items:center;gap:7px;background:none;border:none;color:var(--dim);font-size:12px;font-family:inherit;cursor:pointer;padding:8px 0 0;transition:color .15s;width:100%;text-align:left;}
 .btn-logout:hover{color:var(--red);}
+.btn-del-prod{background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:5px;opacity:.35;transition:opacity .15s,background .15s;}
+.btn-del-prod:hover{opacity:1;background:var(--red-dim);}
 
 /* ORDER DETAIL PANEL */
 .panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;opacity:0;pointer-events:none;transition:opacity .25s;}
@@ -480,6 +482,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
                 <th>% Marge</th>
                 <th class="col-secondary">Priorité</th>
                 <th style="text-align:center;">Dispo</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="table-body"></tbody>
@@ -894,6 +897,7 @@ function buildTable(){
       <td class="td-taux"><span class="pct-badge ${tClass}">${fmtPct(c.tauxMarge)}</span></td>
       <td class="td-priority col-secondary">${priorityHtml}</td>
       <td style="text-align:center;"><label class="toggle-dispo" title="${p.disponible !== false ? 'Disponible' : 'Indisponible'}"><input type="checkbox" ${dispoChecked} onchange="toggleDisponible('${p._docId}',this.checked)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label></td>
+      <td style="text-align:center;"><button class="btn-del-prod" onclick="deleteProduct('${p._docId}','${p.name.replace(/'/g,"\\'")}')" title="Supprimer ce produit">🗑</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -911,6 +915,13 @@ async function updateField(docId, field, val) {
       updatedAt: window._fbServerTimestamp()
     });
   } catch(e) { console.error('updateField error:', e); }
+}
+
+async function deleteProduct(docId, nom) {
+  if (!confirm(`Supprimer ${nom} ? Cette action est irréversible.`)) return;
+  try {
+    await window._fbDeleteDoc(window._fbDoc(window._fbDb, 'technc_catalogue', docId));
+  } catch(e) { alert('Erreur suppression : ' + e.message); }
 }
 
 async function toggleDisponible(docId, disponible) {
