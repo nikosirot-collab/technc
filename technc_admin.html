@@ -336,7 +336,8 @@ tr:hover td { background:rgba(255,255,255,.02); }
   </div>
   <div class="sidebar-bottom">
     <strong>Créneau actif</strong>
-    Voyage Sept. 2026<br>Clôture 20 août
+    <div id="sidebar-creneau-titre" style="color:var(--text);margin-top:4px;">—</div>
+    <div id="sidebar-creneau-cloture" style="margin-top:2px;">—</div>
     <div id="sidebar-user-email" style="margin-top:10px;font-size:10px;color:var(--dim);word-break:break-all;"></div>
     <button class="btn-logout" onclick="handleLogout()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1184,10 +1185,29 @@ async function fetchCustomsTaxes() {
 // ─── CRÉNEAUX (Firestore) ────────────────────────────────────
 let _unsubscribeCreneaux = null;
 
+function updateSidebarCreneau(list) {
+  const MOIS = ['jan.','fév.','mar.','avr.','mai','jun.','jul.','aoû.','sep.','oct.','nov.','déc.'];
+  const fmtDate = s => { if(!s) return ''; const d = new Date(s); return `${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`; };
+  const titreEl = document.getElementById('sidebar-creneau-titre');
+  const clotEl  = document.getElementById('sidebar-creneau-cloture');
+  if (!titreEl || !clotEl) return;
+  const ouvert = list.find(c => c.statut === 'ouvert');
+  if (ouvert) {
+    titreEl.textContent = ouvert.titre || '—';
+    titreEl.style.color = 'var(--text)';
+    clotEl.textContent  = ouvert.dateClotureCommandes ? 'Clôture ' + fmtDate(ouvert.dateClotureCommandes) : '';
+  } else {
+    titreEl.textContent = 'Aucun créneau ouvert';
+    titreEl.style.color = 'var(--dim)';
+    clotEl.textContent  = '';
+  }
+}
+
 function renderCreneaux(list) {
   const container = document.getElementById('creneaux-list');
   if(!container) return;
 
+  updateSidebarCreneau(list);
   const open = list.filter(c => c.statut === 'ouvert');
   const totalCmds = open.reduce((s, c) => s + (c.nbCommandes || 0), 0);
   const totalBudget = open.reduce((s, c) => s + (c.budgetEstimeAUD || 0), 0);
