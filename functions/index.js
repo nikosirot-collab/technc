@@ -45,6 +45,12 @@ function parseAudPrice(html) {
   return filtered.length > 0 ? filtered[0] : candidates[0];
 }
 
+const PRICE_SOURCES = [
+  { name: "Apple Store AU", urlFn: (q) => `https://www.apple.com/au/search/${q}?src=serp` },
+  { name: "JB Hi-Fi",       urlFn: (q) => `https://www.jbhifi.com.au/search?query=${q}` },
+  { name: "Harvey Norman",  urlFn: (q) => `https://www.harveynorman.com.au/search?q=${q}` },
+];
+
 async function fetchPrice(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 9000);
@@ -70,20 +76,29 @@ async function fetchPrice(url) {
   }
 }
 
-async function getBestPrice(nom) {
+async function getBestPriceWithSource(nom) {
   const q = encodeURIComponent(nom);
-  const urls = [
-    `https://www.apple.com/au/search/${q}?src=serp`,
-    `https://www.jbhifi.com.au/search?query=${q}`,
-    `https://www.harveynorman.com.au/search?q=${q}`,
-  ];
-  const results = await Promise.allSettled(urls.map(fetchPrice));
-  const prices = results
+  const settled = await Promise.allSettled(
+    PRICE_SOURCES.map(async (src) => {
+      const sourceURL = src.urlFn(q);
+      const prix = await fetchPrice(sourceURL);
+      return prix !== null ? { prix, fournisseur: src.name, sourceURL } : null;
+    })
+  );
+  const valid = settled
     .filter((r) => r.status === "fulfilled" && r.value !== null)
     .map((r) => r.value);
-  if (prices.length === 0) return null;
-  prices.sort((a, b) => a - b);
-  return prices[0]; // prix le plus bas parmi les 3 sources
+  if (valid.length === 0) return null;
+  return valid.sort((a, b) => a.prix - b.prix)[0];
+}
+
+function isPrixSuspect(newPrix, ancienPrix, nom) {
+  if (newPrix < 50)    { console.warn(`[SKIP] ${nom} — prix ${newPrix} AUD < 50, ignoré`);       return "trop bas"; }
+  if (newPrix > 15000) { console.warn(`[SKIP] ${nom} — prix ${newPrix} AUD > 15000, ignoré`);    return "trop élevé"; }
+  if (ancienPrix > 0 && newPrix < ancienPrix * 0.70) {
+    console.warn(`[SKIP] ${nom} — baisse suspecte ${ancienPrix}→${newPrix} AUD (>30%), ignoré`); return "baisse >30%";
+  }
+  return null;
 }
 
 // ── Core sync logic ────────────────────────────────────────────────
@@ -99,59 +114,38 @@ async function runSync(resendApiKey) {
     if (!nom) continue;
 
     try {
-      const prixAUD = await getBestPrice(nom);
+      const result = await getBestPriceWithSource(nom);
 
-      if (prixAUD !== null) {
+      if (result !== null) {
+        const { prix: prixAUD, fournisseur, sourceURL } = result;
         const ancienPrix = data.prixAUD || 0;
 
-        // Validation : rejeter les prix aberrants avant toute écriture
-        if (prixAUD < 50) {
-          console.warn(`[SKIP] ${nom} — prix ${prixAUD} AUD trop bas (<50), ignoré`);
-          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, status: "ignoré (trop bas)", disponible: true });
-          continue;
-        }
-        if (prixAUD > 15000) {
-          console.warn(`[SKIP] ${nom} — prix ${prixAUD} AUD trop élevé (>15000), ignoré`);
-          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, status: "ignoré (trop élevé)", disponible: true });
-          continue;
-        }
-        if (ancienPrix > 0 && prixAUD < ancienPrix * 0.5) {
-          console.warn(`[SKIP] ${nom} — baisse suspecte ${ancienPrix}→${prixAUD} AUD (>50%), ignoré`);
-          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, status: "ignoré (baisse >50%)", disponible: true });
+        const suspect = isPrixSuspect(prixAUD, ancienPrix, nom);
+        if (suspect) {
+          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, fournisseur, sourceURL, status: `ignoré (${suspect})`, disponible: true });
           continue;
         }
 
         const changed = Math.abs(prixAUD - ancienPrix) > 0.5;
         if (changed) {
           await docSnap.ref.update({
-            prixAUD: prixAUD,
+            prixAUD,
             gst: Math.round(prixAUD * 0.1 * 100) / 100,
+            fournisseur,
+            sourceURL,
+            prixPrecedent: ancienPrix || null,
             disponible: true,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
-        changes.push({
-          nom,
-          marque: data.marque || "",
-          ancienPrix,
-          nouveauPrix: prixAUD,
-          status: changed ? "mis à jour" : "inchangé",
-          disponible: true,
-        });
+        changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, fournisseur, sourceURL, status: changed ? "mis à jour" : "inchangé", disponible: true });
       } else {
         await docSnap.ref.update({
           disponible: false,
           visible: false,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        changes.push({
-          nom,
-          marque: data.marque || "",
-          ancienPrix: data.prixAUD || 0,
-          nouveauPrix: null,
-          status: "introuvable",
-          disponible: false,
-        });
+        changes.push({ nom, marque: data.marque || "", ancienPrix: data.prixAUD || 0, nouveauPrix: null, fournisseur: null, sourceURL: null, status: "introuvable", disponible: false });
       }
     } catch (e) {
       errors.push({ nom, error: e.message });
@@ -199,14 +193,19 @@ async function sendSummaryEmail(apiKey, date, changes, errors) {
   const rows = changes
     .map((c) => {
       const statusColor =
-        c.status === "mis à jour" ? "#1a9e5c" : c.status === "introuvable" ? "#c92b2b" : "#888";
+        c.status === "mis à jour" ? "#1a9e5c" : c.status === "introuvable" ? "#c92b2b" : c.status.startsWith("ignoré") ? "#e07b00" : "#888";
       const statusLabel =
-        c.status === "mis à jour" ? "✅ mis à jour" : c.status === "introuvable" ? "❌ introuvable" : "— inchangé";
+        c.status === "mis à jour" ? "✅ mis à jour" : c.status === "introuvable" ? "❌ introuvable" : c.status.startsWith("ignoré") ? `⚠️ ${c.status}` : "— inchangé";
       const delta =
         c.ancienPrix && c.nouveauPrix && c.status === "mis à jour"
           ? (c.nouveauPrix - c.ancienPrix > 0 ? "+" : "") +
             (c.nouveauPrix - c.ancienPrix).toFixed(0) + " AUD"
           : "";
+      const fournisseurCell = c.fournisseur
+        ? (c.sourceURL
+            ? `<a href="${c.sourceURL}" style="color:#0071e3;text-decoration:none;font-size:11px;">${c.fournisseur}</a>`
+            : `<span style="font-size:11px;color:#555;">${c.fournisseur}</span>`)
+        : '<span style="color:#ccc;font-size:11px;">—</span>';
       return `<tr style="border-bottom:1px solid #eee;">
         <td style="padding:8px 12px;font-size:12px;">${c.marque} ${c.nom}</td>
         <td style="padding:8px 12px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:#888;">
@@ -218,6 +217,7 @@ async function sendSummaryEmail(apiKey, date, changes, errors) {
         <td style="padding:8px 12px;text-align:right;font-size:11px;color:${delta.startsWith("+") ? "#c92b2b" : "#1a9e5c"};">
           ${delta}
         </td>
+        <td style="padding:8px 12px;">${fournisseurCell}</td>
         <td style="padding:8px 12px;text-align:center;font-size:11px;color:${statusColor};">${statusLabel}</td>
       </tr>`;
     })
@@ -263,6 +263,7 @@ async function sendSummaryEmail(apiKey, date, changes, errors) {
         <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;">Ancien</th>
         <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;">Nouveau</th>
         <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;">Δ</th>
+        <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;">Source</th>
         <th style="padding:8px 12px;text-align:center;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;">Statut</th>
       </tr>
     </thead>
@@ -382,21 +383,18 @@ async function fuzzyUpdateCatalogue(nomRecherche, bestResult) {
   if (bestDoc && bestScore >= 0.5) {
     const newPrix = bestResult.prix;
     const ancienPrix = bestDoc.data().prixAUD || 0;
-    if (newPrix < 50 || newPrix > 15000) {
-      console.warn(`[SKIP fuzzy] ${bestDoc.data().nom} — prix ${newPrix} hors plage, ignoré`);
-      return null;
-    }
-    if (ancienPrix > 0 && newPrix < ancienPrix * 0.5) {
-      console.warn(`[SKIP fuzzy] ${bestDoc.data().nom} — baisse suspecte ${ancienPrix}→${newPrix} (>50%), ignoré`);
-      return null;
-    }
+    const docNom = bestDoc.data().nom || "";
+    const suspect = isPrixSuspect(newPrix, ancienPrix, docNom);
+    if (suspect) return null;
     await bestDoc.ref.update({
       prixAUD: newPrix,
       gst: Math.round(newPrix * 0.1 * 100) / 100,
       fournisseur: bestResult.revendeur,
+      sourceURL: bestResult.url || null,
+      prixPrecedent: ancienPrix || null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { docId: bestDoc.id, nom: bestDoc.data().nom, score: Math.round(bestScore * 100) };
+    return { docId: bestDoc.id, nom: docNom, score: Math.round(bestScore * 100) };
   }
   return null;
 }

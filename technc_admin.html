@@ -278,6 +278,13 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .ap-badge-green{background:rgba(48,209,88,.15);color:var(--green);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:5px;}
 .ap-badge-red{background:rgba(255,69,58,.12);color:#ff453a;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:5px;}
 .ap-badge-orange{background:rgba(255,159,10,.12);color:var(--orange);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:5px;}
+.src-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.src-jbhifi{background:rgba(255,159,10,.15);color:#e07b00;}
+.src-harvey{background:rgba(255,59,48,.12);color:#c92b2b;}
+.src-apple{background:rgba(150,150,150,.15);color:#888;}
+.src-tgg{background:rgba(110,75,219,.12);color:#6e4bdb;}
+.src-officeworks{background:rgba(255,59,48,.1);color:#c92b2b;}
+.src-autre{background:rgba(10,132,255,.12);color:var(--accent);}
 .ap-quick-links{display:flex;gap:8px;margin-top:6px;}
 .ap-quick-link{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--accent);text-decoration:none;padding:4px 9px;border:1px solid var(--accent);border-radius:5px;opacity:.8;transition:opacity .15s;}
 .ap-quick-link:hover{opacity:1;}
@@ -459,6 +466,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
               <tr>
                 <th>Produit</th>
                 <th class="tooltip" data-tip="Prix brut Apple AU ou JB Hi-Fi">Prix AU (AUD)</th>
+                <th class="tooltip col-secondary" data-tip="Revendeur source du prix">Source</th>
                 <th class="tooltip col-secondary" data-tip="Remboursement GST 10% à l'aéroport">GST récup.</th>
                 <th class="tooltip col-secondary" data-tip="Prix net après remboursement GST">Net AU</th>
                 <th class="tooltip col-secondary" data-tip="Net AU × taux AUD/XPF">Coût AUD→XPF</th>
@@ -854,9 +862,25 @@ function buildTable(){
       ? '<span class="badge-indispo">Indisponible</span>'
       : '';
     const dispoChecked = p.disponible !== false ? 'checked' : '';
+    const srcBadge = (() => {
+      const f = p.fournisseur || '';
+      const fl = f.toLowerCase();
+      const cls = fl.includes('jb') ? 'src-jbhifi'
+        : fl.includes('harvey') ? 'src-harvey'
+        : fl.includes('apple') ? 'src-apple'
+        : fl.includes('good guys') ? 'src-tgg'
+        : fl.includes('officeworks') ? 'src-officeworks'
+        : f ? 'src-autre' : '';
+      if (!f) return '<span style="color:var(--dim);font-size:10px;">—</span>';
+      const label = f.replace('Store AU','').replace(' AU','').trim();
+      return p.sourceURL
+        ? `<a href="${p.sourceURL}" target="_blank" class="src-badge ${cls}">${label} ↗</a>`
+        : `<span class="src-badge ${cls}">${label}</span>`;
+    })();
     tr.innerHTML = `
       <td><div class="td-product"><span class="td-cat">${p.cat}</span><span class="td-name">${p.name}${dispoHtml}</span><span class="td-spec">${p.spec}</span></div></td>
       <td><input class="editable" value="${p.prixAUD}" onchange="updateField('${p._docId}','prixAUD',this.value.replace(/[^0-9.]/g,''))" title="Modifier le prix AU"></td>
+      <td class="col-secondary" style="vertical-align:middle;">${srcBadge}</td>
       <td class="num num-pos td-gst col-secondary">${fmtAUD(c.gst)}</td>
       <td class="num td-net col-secondary">${fmtAUD(c.netAUD)}</td>
       <td class="num td-xpf col-secondary">${fmt(c.xpf)}</td>
@@ -925,6 +949,8 @@ function loadCatalogue() {
           marque: data.marque,
           visible: data.visible,
           disponible: data.disponible !== false,
+          fournisseur: data.fournisseur || null,
+          sourceURL: data.sourceURL || null,
         };
       });
       products.sort((a, b) => (CAT_ORDER_ADMIN[a.cat]||99) - (CAT_ORDER_ADMIN[b.cat]||99));
