@@ -92,6 +92,18 @@ async function getBestPriceWithSource(nom) {
   return valid.sort((a, b) => a.prix - b.prix)[0];
 }
 
+function specMatchValidate(resultNom, specTerms) {
+  if (!specTerms || specTerms.length === 0) return true;
+  const norm = (s) =>
+    s.toLowerCase()
+      .replace(/(\d+)\s*go\b/g,  "$1gb")   // 256 Go → 256gb
+      .replace(/(\d+)\s*gb\b/gi, "$1gb")   // 256 GB → 256gb
+      .replace(/(\d+)\s*tb\b/gi, "$1tb")
+      .replace(/\s+/g, " ");
+  const nomNorm = norm(resultNom);
+  return specTerms.every((term) => nomNorm.includes(norm(term)));
+}
+
 function isPrixSuspect(newPrix, ancienPrix, nom) {
   if (newPrix < 50)    { console.warn(`[SKIP] ${nom} — prix ${newPrix} AUD < 50, ignoré`);       return "trop bas"; }
   if (newPrix > 15000) { console.warn(`[SKIP] ${nom} — prix ${newPrix} AUD > 15000, ignoré`);    return "trop élevé"; }
@@ -382,10 +394,21 @@ async function fuzzyUpdateCatalogue(nomRecherche, bestResult) {
 
   if (bestDoc && bestScore >= 0.5) {
     const newPrix = bestResult.prix;
-    const ancienPrix = bestDoc.data().prixAUD || 0;
-    const docNom = bestDoc.data().nom || "";
+    const docData = bestDoc.data();
+    const ancienPrix = docData.prixAUD || 0;
+    const docNom = docData.nom || "";
+    const specMatch = docData.specMatch || [];
+
+    // Validation prix
     const suspect = isPrixSuspect(newPrix, ancienPrix, docNom);
     if (suspect) return null;
+
+    // Validation critères exacts (modèle, stockage…)
+    if (!specMatchValidate(bestResult.nom, specMatch)) {
+      console.warn(`[SKIP specMatch] "${bestResult.nom}" ne satisfait pas ${JSON.stringify(specMatch)} pour "${docNom}"`);
+      return { docId: bestDoc.id, nom: docNom, score: Math.round(bestScore * 100), skipped: "specMatch" };
+    }
+
     await bestDoc.ref.update({
       prixAUD: newPrix,
       gst: Math.round(newPrix * 0.1 * 100) / 100,
@@ -479,11 +502,18 @@ exports.scrapeAUPrix = functions.https.onRequest(
       const results = parseStaticIce(html);
 
       let updated = null;
+      let skippedReason = null;
       if (results.length > 0) {
         updated = await fuzzyUpdateCatalogue(nom, results[0]);
+        if (updated && updated.skipped) {
+          skippedReason = updated.skipped;
+          updated = null;
+        }
+      } else {
+        console.warn(`[scrapeAUPrix] Aucun résultat StaticICE pour "${nom}"`);
       }
 
-      res.status(200).json({ results, updated });
+      res.status(200).json({ results, updated, skippedReason });
     } catch (e) {
       if (e.name === "AbortError") {
         return res.status(504).json({ error: "Timeout — StaticICE n'a pas répondu" });
@@ -509,7 +539,7 @@ const SEED_PRIX = {
   "macbook-neo-512":       { prixAUD: 1099,  gst: 109.9  },
   "macbook-air-13-m5":     { prixAUD: 1799,  gst: 179.9  },
   "macbook-air-15-m5":     { prixAUD: 2099,  gst: 209.9  },
-  "mac-mini-m4":           { prixAUD: 999,   gst: 99.9   },
+  "mac-mini-m4-512":       { prixAUD: 999,   gst: 99.9   },
   "watch-series-11-42":    { prixAUD: 679,   gst: 67.9   },
   "watch-se3-40":          { prixAUD: 399,   gst: 39.9   },
   "watch-ultra3-49":       { prixAUD: 1230,  gst: 123    },
@@ -542,7 +572,32 @@ exports.restorePrixSeed = functions.https.onRequest(
     }
     try {
       const batch = db.batch();
+
+      // Migration mac-mini-m4 (256Go, n'existe plus chez Apple) → mac-mini-m4-512
+      batch.delete(db.collection("technc_catalogue").doc("mac-mini-m4"));
+      batch.set(
+        db.collection("technc_catalogue").doc("mac-mini-m4-512"),
+        {
+          id: "mac-mini-m4-512",
+          cat: "Mac",
+          marque: "Apple",
+          nom: "Mac mini M4",
+          spec: "512 Go · M4 · 16 Go RAM",
+          prixAUD: 999,
+          gst: 99.9,
+          prixVente: 106000,
+          disponible: true,
+          visible: true,
+          fournisseur: "Apple Store AU",
+          specMatch: ["M4", "512"],
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Restore prix pour tous les autres produits
       for (const [docId, prix] of Object.entries(SEED_PRIX)) {
+        if (docId === "mac-mini-m4-512") continue; // already handled above
         const ref = db.collection("technc_catalogue").doc(docId);
         batch.update(ref, {
           prixAUD: prix.prixAUD,
@@ -553,7 +608,7 @@ exports.restorePrixSeed = functions.https.onRequest(
         });
       }
       await batch.commit();
-      res.status(200).json({ ok: true, restored: Object.keys(SEED_PRIX).length });
+      res.status(200).json({ ok: true, restored: Object.keys(SEED_PRIX).length, migrated: "mac-mini-m4 → mac-mini-m4-512" });
     } catch (e) {
       console.error("restorePrixSeed error:", e);
       res.status(500).json({ error: e.message });

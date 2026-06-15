@@ -699,7 +699,7 @@ const SEED_CATALOGUE = [
   { id:'macbook-neo-512', cat:'Mac', marque:'Apple', nom:'MacBook Neo', spec:'512 Go · A18 Pro', prixAUD:1099, gst:109.9, prixVente:114000, visible:true, fournisseur:'Apple Store AU' },
   { id:'macbook-air-13-m5', cat:'Mac', marque:'Apple', nom:'MacBook Air 13" M5', spec:'512 Go · 16 Go RAM', prixAUD:1799, gst:179.9, prixVente:174000, visible:true, fournisseur:'Apple Store AU' },
   { id:'macbook-air-15-m5', cat:'Mac', marque:'Apple', nom:'MacBook Air 15" M5', spec:'512 Go · 16 Go RAM', prixAUD:2099, gst:209.9, prixVente:200000, visible:true, fournisseur:'Apple Store AU' },
-  { id:'mac-mini-m4', cat:'Mac', marque:'Apple', nom:'Mac mini M4', spec:'256 Go · 16 Go RAM', prixAUD:999, gst:99.9, prixVente:106000, visible:true, fournisseur:'Apple Store AU' },
+  { id:'mac-mini-m4-512', cat:'Mac', marque:'Apple', nom:'Mac mini M4', spec:'512 Go · M4 · 16 Go RAM', prixAUD:999, gst:99.9, prixVente:106000, visible:true, fournisseur:'Apple Store AU', specMatch:['M4','512'] },
   // Watch
   { id:'watch-series-11-42', cat:'Watch', marque:'Apple', nom:'Apple Watch Series 11', spec:'42mm · GPS · Alu', prixAUD:679, gst:67.9, prixVente:78000, visible:true, fournisseur:'Apple Store AU' },
   { id:'watch-se3-40', cat:'Watch', marque:'Apple', nom:'Apple Watch SE 3', spec:'40mm · GPS · Alu', prixAUD:399, gst:39.9, prixVente:54000, visible:true, fournisseur:'Apple Store AU' },
@@ -951,6 +951,7 @@ function loadCatalogue() {
           disponible: data.disponible !== false,
           fournisseur: data.fournisseur || null,
           sourceURL: data.sourceURL || null,
+          specMatch: data.specMatch || [],
         };
       });
       products.sort((a, b) => (CAT_ORDER_ADMIN[a.cat]||99) - (CAT_ORDER_ADMIN[b.cat]||99));
@@ -1776,6 +1777,8 @@ async function saveNewProduct() {
     const prixIstore = parseFloat(document.getElementById('ap-prix-istore').value) || null;
     const description = document.getElementById('ap-description').value.trim();
     const disponible = document.getElementById('ap-disponible').checked;
+    const specMatchRaw = document.getElementById('ap-spec-match').value.trim();
+    const specMatch = specMatchRaw ? specMatchRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
     const productData = {
       id, marque, cat, nom, spec, fournisseur, prixAUD,
       gst: prixAUD * 0.10, prixVente,
@@ -1787,8 +1790,9 @@ async function saveNewProduct() {
     if (videoUrl) productData.videoUrl = videoUrl;
     if (prixIstore) productData.prixIstore = prixIstore;
     if (description) productData.description = description;
+    if (specMatch.length > 0) productData.specMatch = specMatch;
     await window._fbSetDoc(window._fbDoc(window._fbDb, 'technc_catalogue', id), productData);
-    ['ap-nom','ap-spec','ap-prix','ap-vente','ap-image-url','ap-video-url','ap-prix-istore','ap-description'].forEach(i => { const e = document.getElementById(i); if(e) e.value = ''; });
+    ['ap-nom','ap-spec','ap-spec-match','ap-prix','ap-vente','ap-image-url','ap-video-url','ap-prix-istore','ap-description'].forEach(i => { const e = document.getElementById(i); if(e) e.value = ''; });
     document.getElementById('ap-disponible').checked = true;
     document.getElementById('ap-price-results').style.display = 'none';
     updateAddCalcs();
@@ -1928,6 +1932,11 @@ window._initApp = function() {
       <div class="aform-group">
         <label class="aform-label">Spec</label>
         <input id="ap-spec" class="aform-input" type="text" placeholder="ex : 256 Go · A20 Pro · Titane">
+      </div>
+      <div class="aform-group">
+        <label class="aform-label">Critères obligatoires StaticICE</label>
+        <input id="ap-spec-match" class="aform-input" type="text" placeholder="ex : 512GB, M4 — séparés par virgule">
+        <div style="font-size:11px;color:var(--dim);margin-top:4px;">Ces mots <strong>doivent</strong> apparaître dans le titre StaticICE — évite les mauvais modèles</div>
       </div>
       <div class="aform-group">
         <label class="aform-label">Fournisseur préféré</label>
