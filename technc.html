@@ -356,7 +356,15 @@
         </div>
       </div>
 
-      <div class="form-info">📅 Créneau Septembre 2026 · Paiement échelonné jusqu'au départ · Solde avant vol</div>
+      <div class="form-info" id="form-info-dyn">📅 Paiement échelonné jusqu'au départ · Solde avant vol</div>
+
+      <div class="fg" id="fg-creneau" style="display:none;">
+        <label>Créneau de voyage *</label>
+        <select id="f-creneau" onchange="onCreneauChange()"></select>
+      </div>
+      <div id="no-creneau-msg" style="display:none;background:rgba(224,123,0,.09);border-radius:9px;padding:11px 14px;font-size:13px;color:#e07b00;text-align:center;margin-bottom:14px;">
+        Aucun créneau disponible pour le moment — revenez bientôt 🛫
+      </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="fg"><label>Prénom *</label><input type="text" id="f-prenom" placeholder="Marie"></div>
@@ -614,6 +622,7 @@ async function loadCatalogue() {
 
 // ─── CRÉNEAU DEPUIS FIRESTORE ────────────────────────────
 let currentCreneau = null;
+let openCreneaux = [];
 let _cdInterval = null;
 let _catalogue = {};
 let _detailAnimRect = null;
@@ -650,19 +659,67 @@ function renderBannerEmpty() {
   document.getElementById('creneau-btn').style.display = 'none';
 }
 
-async function loadCreneau() {
-  if(!window._fbDb) { setTimeout(loadCreneau, 150); return; }
+async function loadCreneaux() {
+  if(!window._fbDb) { setTimeout(loadCreneaux, 150); return; }
   try {
     const snap = await window._fbGetDocs(
       window._fbQuery(window._fbCollection(window._fbDb, 'technc_creneaux'), window._fbWhere('statut', '==', 'ouvert'))
     );
-    if(snap.empty) { renderBannerEmpty(); return; }
-    currentCreneau = snap.docs[0].data();
-    renderBanner(currentCreneau);
+    openCreneaux = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => a.dateDepart > b.dateDepart ? 1 : -1);
+    if(openCreneaux.length > 0) {
+      currentCreneau = openCreneaux[0];
+      renderBanner(currentCreneau);
+    } else {
+      renderBannerEmpty();
+    }
     updatePrixVerrouille();
   } catch(e) {
-    console.error('loadCreneau error:', e);
+    console.error('loadCreneaux error:', e);
     renderBannerEmpty();
+  }
+}
+
+function updateFormInfo(c) {
+  const el = document.getElementById('form-info-dyn');
+  if(!el) return;
+  el.textContent = c
+    ? `📅 ${c.titre} · Paiement échelonné jusqu'au départ · Solde avant vol`
+    : '📅 Aucun créneau disponible pour le moment';
+}
+
+function populateCreneauxSelect() {
+  const sel = document.getElementById('f-creneau');
+  const msg = document.getElementById('no-creneau-msg');
+  const fg  = document.getElementById('fg-creneau');
+  const btn = document.getElementById('btn-submit');
+  const MOIS = ['jan.','fév.','mar.','avr.','mai','jun.','jul.','aoû.','sep.','oct.','nov.','déc.'];
+  const fmtDate = s => { const d = new Date(s); return `${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`; };
+  if(openCreneaux.length === 0) {
+    fg.style.display = 'none';
+    msg.style.display = 'block';
+    if(btn) btn.disabled = true;
+    updateFormInfo(null);
+    return;
+  }
+  fg.style.display = '';
+  msg.style.display = 'none';
+  if(btn) btn.disabled = false;
+  sel.innerHTML = openCreneaux.map(c =>
+    `<option value="${c.id}">${c.titre} — Commandes jusqu'au ${fmtDate(c.dateClotureCommandes)}</option>`
+  ).join('');
+  if(sel.selectedIndex < 0) sel.selectedIndex = 0;
+  onCreneauChange();
+}
+
+function onCreneauChange() {
+  const sel = document.getElementById('f-creneau');
+  const found = sel ? openCreneaux.find(c => c.id === sel.value) : null;
+  if(found) {
+    currentCreneau = found;
+    updateFormInfo(found);
+    updatePrixVerrouille();
   }
 }
 
@@ -683,6 +740,7 @@ function showCat(cat,btn){
 
 // ─── MODAL ─────────────────────────────────────────────
 function openModal(prod){
+  populateCreneauxSelect();
   document.getElementById('mprod').textContent = prod || 'Produit';
   const sel = document.getElementById('f-prod');
   if(prod){
@@ -744,6 +802,9 @@ async function submitOrder(){
     tauxAUD: parseFloat(liveRate.toFixed(4)),
     tauxSource: rateSource,
     creneau: currentCreneau ? currentCreneau.titre : 'Non défini',
+    creneauId: currentCreneau ? currentCreneau.id : null,
+    creneauTitre: currentCreneau ? currentCreneau.titre : null,
+    creneauDepart: currentCreneau ? currentCreneau.dateDepart : null,
     statut: 'confirme',
     paiements,
     dateLivraison: '',
@@ -947,7 +1008,7 @@ document.addEventListener('keydown', function(e) {
 // ─── INIT ────────────────────────────────────────────────
 fetchLiveRate();
 loadCatalogue();
-loadCreneau();
+loadCreneaux();
 </script>
 
 <script>

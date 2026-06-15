@@ -276,6 +276,7 @@ body{
     <div class="dash-greeting" id="dash-greeting">Bonjour 👋</div>
     <div class="dash-product" id="dash-product"></div>
     <div class="dash-coloris" id="dash-coloris"></div>
+    <div class="dash-creneau" id="dash-creneau" style="display:none;margin-top:8px;padding:5px 10px;background:rgba(10,132,255,.08);border-radius:7px;font-size:12px;color:var(--accent);font-weight:600;">🛫 <span id="dash-creneau-text"></span></div>
   </div>
 
   <!-- TIMELINE -->
@@ -462,6 +463,19 @@ function renderDashboard(o) {
   const colorisEl = document.getElementById('dash-coloris');
   colorisEl.textContent = o.coloris || '';
   colorisEl.style.display = o.coloris ? '' : 'none';
+
+  const MOIS = ['jan.','fév.','mar.','avr.','mai','jun.','jul.','aoû.','sep.','oct.','nov.','déc.'];
+  const fmtDate = s => { if(!s) return ''; const d = new Date(s); return `${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`; };
+  const creneauEl = document.getElementById('dash-creneau');
+  const creneauTxt = document.getElementById('dash-creneau-text');
+  const titre = o.creneauTitre || o.creneau || '';
+  if (titre) {
+    const depart = o.creneauDepart ? ` · Départ ${fmtDate(o.creneauDepart)}` : '';
+    creneauTxt.textContent = titre + depart;
+    creneauEl.style.display = '';
+  } else {
+    creneauEl.style.display = 'none';
+  }
 
   renderTimeline(o.statut);
   renderLivraison(o.dateLivraison);
