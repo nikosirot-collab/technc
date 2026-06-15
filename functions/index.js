@@ -103,6 +103,24 @@ async function runSync(resendApiKey) {
 
       if (prixAUD !== null) {
         const ancienPrix = data.prixAUD || 0;
+
+        // Validation : rejeter les prix aberrants avant toute écriture
+        if (prixAUD < 50) {
+          console.warn(`[SKIP] ${nom} — prix ${prixAUD} AUD trop bas (<50), ignoré`);
+          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, status: "ignoré (trop bas)", disponible: true });
+          continue;
+        }
+        if (prixAUD > 15000) {
+          console.warn(`[SKIP] ${nom} — prix ${prixAUD} AUD trop élevé (>15000), ignoré`);
+          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, status: "ignoré (trop élevé)", disponible: true });
+          continue;
+        }
+        if (ancienPrix > 0 && prixAUD < ancienPrix * 0.5) {
+          console.warn(`[SKIP] ${nom} — baisse suspecte ${ancienPrix}→${prixAUD} AUD (>50%), ignoré`);
+          changes.push({ nom, marque: data.marque || "", ancienPrix, nouveauPrix: prixAUD, status: "ignoré (baisse >50%)", disponible: true });
+          continue;
+        }
+
         const changed = Math.abs(prixAUD - ancienPrix) > 0.5;
         if (changed) {
           await docSnap.ref.update({
@@ -362,9 +380,19 @@ async function fuzzyUpdateCatalogue(nomRecherche, bestResult) {
   }
 
   if (bestDoc && bestScore >= 0.5) {
+    const newPrix = bestResult.prix;
+    const ancienPrix = bestDoc.data().prixAUD || 0;
+    if (newPrix < 50 || newPrix > 15000) {
+      console.warn(`[SKIP fuzzy] ${bestDoc.data().nom} — prix ${newPrix} hors plage, ignoré`);
+      return null;
+    }
+    if (ancienPrix > 0 && newPrix < ancienPrix * 0.5) {
+      console.warn(`[SKIP fuzzy] ${bestDoc.data().nom} — baisse suspecte ${ancienPrix}→${newPrix} (>50%), ignoré`);
+      return null;
+    }
     await bestDoc.ref.update({
-      prixAUD: bestResult.prix,
-      gst: Math.round(bestResult.prix * 0.1 * 100) / 100,
+      prixAUD: newPrix,
+      gst: Math.round(newPrix * 0.1 * 100) / 100,
       fournisseur: bestResult.revendeur,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -462,6 +490,74 @@ exports.scrapeAUPrix = functions.https.onRequest(
       if (e.name === "AbortError") {
         return res.status(504).json({ error: "Timeout — StaticICE n'a pas répondu" });
       }
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
+// ── Restore seed prices (one-shot après bug de sync) ─────────────────
+const SEED_PRIX = {
+  "iphone-17-pro-256":     { prixAUD: 1999,  gst: 199.9  },
+  "iphone-17-pro-512":     { prixAUD: 2399,  gst: 239.9  },
+  "iphone-17-pro-max-256": { prixAUD: 2199,  gst: 219.9  },
+  "iphone-air-256":        { prixAUD: 1799,  gst: 179.9  },
+  "iphone-17-256":         { prixAUD: 1399,  gst: 139.9  },
+  "iphone-17e-256":        { prixAUD: 999,   gst: 99.9   },
+  "ipad-pro-13-m5":        { prixAUD: 2199,  gst: 219.9  },
+  "ipad-pro-11-m5":        { prixAUD: 1699,  gst: 169.9  },
+  "ipad-air-11-m4":        { prixAUD: 999,   gst: 99.9   },
+  "ipad-mini-a17":         { prixAUD: 799,   gst: 79.9   },
+  "macbook-neo-256":       { prixAUD: 899,   gst: 89.9   },
+  "macbook-neo-512":       { prixAUD: 1099,  gst: 109.9  },
+  "macbook-air-13-m5":     { prixAUD: 1799,  gst: 179.9  },
+  "macbook-air-15-m5":     { prixAUD: 2099,  gst: 209.9  },
+  "mac-mini-m4":           { prixAUD: 999,   gst: 99.9   },
+  "watch-series-11-42":    { prixAUD: 679,   gst: 67.9   },
+  "watch-se3-40":          { prixAUD: 399,   gst: 39.9   },
+  "watch-ultra3-49":       { prixAUD: 1230,  gst: 123    },
+  "airpods-pro-3":         { prixAUD: 429,   gst: 42.9   },
+  "airpods-4-anc":         { prixAUD: 229,   gst: 22.9   },
+  "airpods-max-2":         { prixAUD: 999,   gst: 99.9   },
+  "apple-pencil-pro":      { prixAUD: 149,   gst: 14.9   },
+  "airtag-x4":             { prixAUD: 149,   gst: 14.9   },
+  "homepod-mini":          { prixAUD: 99,    gst: 9.9    },
+  "samsung-s26-256":       { prixAUD: 1549,  gst: 154.9  },
+  "samsung-s26-plus-256":  { prixAUD: 1849,  gst: 184.9  },
+  "samsung-s26-ultra-256": { prixAUD: 2199,  gst: 219.9  },
+  "samsung-a56-5g":        { prixAUD: 549,   gst: 54.9   },
+  "samsung-a36-5g":        { prixAUD: 449,   gst: 44.9   },
+  "samsung-a26-5g":        { prixAUD: 349,   gst: 34.9   },
+  "samsung-a16-5g":        { prixAUD: 249,   gst: 24.9   },
+  "pixel-10-pro-256":      { prixAUD: 1849,  gst: 184.9  },
+  "pixel-10-pro-xl-256":   { prixAUD: 1997,  gst: 199.7  },
+  "pixel-10a-128":         { prixAUD: 849,   gst: 84.9   },
+};
+
+exports.restorePrixSeed = functions.https.onRequest(
+  { timeoutSeconds: 60, memory: "256MiB", cors: true },
+  async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST, GET");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      return res.status(204).send("");
+    }
+    try {
+      const batch = db.batch();
+      for (const [docId, prix] of Object.entries(SEED_PRIX)) {
+        const ref = db.collection("technc_catalogue").doc(docId);
+        batch.update(ref, {
+          prixAUD: prix.prixAUD,
+          gst: prix.gst,
+          disponible: true,
+          visible: true,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      res.status(200).json({ ok: true, restored: Object.keys(SEED_PRIX).length });
+    } catch (e) {
+      console.error("restorePrixSeed error:", e);
       res.status(500).json({ error: e.message });
     }
   }
